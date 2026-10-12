@@ -1,5 +1,9 @@
 package cl.duoc.serviciotecnico.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -11,6 +15,9 @@ import cl.duoc.serviciotecnico.ui.screens.DetalleTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioGuiaScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.ListadoTicketsScreen
+import cl.duoc.serviciotecnico.ui.screens.PruebaRecursosScreen
+
+private const val DURACION = 320
 
 @Composable
 fun NavegacionApp() {
@@ -18,12 +25,38 @@ fun NavegacionApp() {
 
     NavHost(
         navController = navController,
-        startDestination = Rutas.LISTADO_TICKETS
+        startDestination = Rutas.LISTADO_TICKETS,
+        enterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(DURACION)
+            ) + fadeIn(animationSpec = tween(DURACION))
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(DURACION)
+            ) + fadeOut(animationSpec = tween(DURACION))
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(DURACION)
+            ) + fadeIn(animationSpec = tween(DURACION))
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(DURACION)
+            ) + fadeOut(animationSpec = tween(DURACION))
+        }
     ) {
+
         composable(Rutas.LISTADO_TICKETS) {
             ListadoTicketsScreen(
                 onCrearTicket = { navController.navigate(Rutas.formularioTicket()) },
-                onAbrirTicket = { ticketId -> navController.navigate(Rutas.detalleTicket(ticketId)) }
+                onAbrirTicket = { ticketId -> navController.navigate(Rutas.detalleTicket(ticketId)) },
+                onProbarRecursos = { navController.navigate(Rutas.PRUEBA_RECURSOS) }
             )
         }
 
@@ -77,6 +110,10 @@ fun NavegacionApp() {
                 guiaId = guiaId,
                 onVolver = { navController.popBackStack() }
             )
+        }
+
+        composable(Rutas.PRUEBA_RECURSOS) {
+            PruebaRecursosScreen(onVolver = { navController.popBackStack() })
         }
     }
 }
