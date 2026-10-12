@@ -74,6 +74,22 @@ Para probar la cámara y la ubicación conviene un dispositivo físico. En el em
 estar habilitada en la configuración del dispositivo virtual y la ubicación se simula desde los
 controles extendidos del emulador.
 
+## Recursos nativos del dispositivo
+
+| Recurso | Para qué | Permiso |
+|---|---|---|
+| Cámara | Fotografiar el trabajo realizado y adjuntarlo a la guía de servicio | `CAMERA` |
+| Ubicación (GPS) | Registrar las coordenadas donde se realizó el servicio | `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` |
+
+Los permisos se solicitan en el momento en que la función se usa, no al abrir la aplicación. Si el
+usuario los deniega, la aplicación explica para qué sirven, ofrece abrir los ajustes del sistema y
+permite seguir trabajando: la guía se guarda igual, sin fotografías ni coordenadas.
+
+Las fotografías se guardan como archivos en el almacenamiento privado de la aplicación y se
+comparten con la cámara del sistema mediante `FileProvider`. En la base de datos solo queda su URI.
+
 ## Documentación
 
 - `docs/plan-equipo.md` — reparto del trabajo, calendario y reglas de trabajo en equipo.
+- `docs/cimiento.md` — decisiones de arquitectura y por qué está así.
+- `docs/recursos-nativos.md` — cómo usar los componentes de cámara, ubicación y galería.

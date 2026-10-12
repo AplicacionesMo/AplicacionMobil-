@@ -6,7 +6,8 @@ import cl.duoc.serviciotecnico.ui.components.PantallaProvisional
 @Composable
 fun ListadoTicketsScreen(
     onCrearTicket: () -> Unit,
-    onAbrirTicket: (String) -> Unit
+    onAbrirTicket: (String) -> Unit,
+    onProbarRecursos: () -> Unit = {}
 ) {
     PantallaProvisional(
         titulo = "Tickets",
@@ -14,7 +15,8 @@ fun ListadoTicketsScreen(
         responsable = "Persona 1 - tarjetas T-01 y T-02",
         acciones = listOf(
             "Crear ticket" to onCrearTicket,
-            "Abrir detalle de ejemplo" to { onAbrirTicket("demo") }
+            "Abrir detalle de ejemplo" to { onAbrirTicket("demo") },
+            "Probar camara y ubicacion" to onProbarRecursos
         )
     )
 }
