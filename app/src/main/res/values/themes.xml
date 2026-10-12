@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Tema del sistema solo para la ventana (barra de estado y fondo inicial).
+      Los colores y la tipografia de la aplicacion viven en Compose,
+      en ui/theme/Theme.kt
+    -->
+    <style name="Theme.ServicioTecnico" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
