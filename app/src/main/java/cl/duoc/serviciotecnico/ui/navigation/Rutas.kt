@@ -17,8 +17,6 @@ object Rutas {
     const val DETALLE_GUIA = "guias/{guiaId}"
     fun detalleGuia(guiaId: String): String = "guias/$guiaId"
 
-    const val PRUEBA_RECURSOS = "prueba/recursos"
-
     const val ARG_TICKET_ID = "ticketId"
     const val ARG_GUIA_ID = "guiaId"
 }

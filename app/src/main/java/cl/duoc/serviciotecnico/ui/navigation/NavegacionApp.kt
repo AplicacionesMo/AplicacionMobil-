@@ -15,7 +15,6 @@ import cl.duoc.serviciotecnico.ui.screens.DetalleTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioGuiaScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.ListadoTicketsScreen
-import cl.duoc.serviciotecnico.ui.screens.PruebaRecursosScreen
 
 private const val DURACION = 320
 
@@ -55,8 +54,7 @@ fun NavegacionApp() {
         composable(Rutas.LISTADO_TICKETS) {
             ListadoTicketsScreen(
                 onCrearTicket = { navController.navigate(Rutas.formularioTicket()) },
-                onAbrirTicket = { ticketId -> navController.navigate(Rutas.detalleTicket(ticketId)) },
-                onProbarRecursos = { navController.navigate(Rutas.PRUEBA_RECURSOS) }
+                onAbrirTicket = { ticketId -> navController.navigate(Rutas.detalleTicket(ticketId)) }
             )
         }
 
@@ -112,8 +110,5 @@ fun NavegacionApp() {
             )
         }
 
-        composable(Rutas.PRUEBA_RECURSOS) {
-            PruebaRecursosScreen(onVolver = { navController.popBackStack() })
-        }
     }
 }
