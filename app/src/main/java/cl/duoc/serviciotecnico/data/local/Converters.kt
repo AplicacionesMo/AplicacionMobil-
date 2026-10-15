@@ -25,6 +25,14 @@ class Converters {
     @TypeConverter
     fun textoAPrioridad(valor: String): Prioridad = Prioridad.valueOf(valor)
 
+    //Lista de URIs de fotos guardada como un solo texto, una URI por linea
+    @TypeConverter
+    fun listaATexto(valor: List<String>): String = valor.joinToString("\n")
+
+    @TypeConverter
+    fun textoALista(valor: String): List<String> =
+        if (valor.isBlank()) emptyList() else valor.split("\n")
+
     @TypeConverter
     fun propiedadATexto(valor: Propiedad): String = valor.name
 

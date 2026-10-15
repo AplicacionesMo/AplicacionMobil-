@@ -5,18 +5,20 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import cl.duoc.serviciotecnico.data.local.dao.CambioEstadoDao
 import cl.duoc.serviciotecnico.data.local.dao.EquipoDao
 import cl.duoc.serviciotecnico.data.local.dao.FotoGuiaDao
 import cl.duoc.serviciotecnico.data.local.dao.GuiaDao
 import cl.duoc.serviciotecnico.data.local.dao.TicketDao
+import cl.duoc.serviciotecnico.data.local.entity.CambioEstado
 import cl.duoc.serviciotecnico.data.local.entity.Equipo
 import cl.duoc.serviciotecnico.data.local.entity.FotoGuia
 import cl.duoc.serviciotecnico.data.local.entity.Guia
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 
 @Database(
-    entities = [Ticket::class, Equipo::class, Guia::class, FotoGuia::class],
-    version = 1,
+    entities = [Ticket::class, Equipo::class, Guia::class, FotoGuia::class, CambioEstado::class],
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -25,6 +27,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun equipoDao(): EquipoDao
     abstract fun guiaDao(): GuiaDao
     abstract fun fotoGuiaDao(): FotoGuiaDao
+    abstract fun cambioEstadoDao(): CambioEstadoDao
 
     companion object {
         @Volatile
@@ -36,7 +39,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "servicio_tecnico.db"
-                ).build().also { instancia = it }
+                )
+                    // Prototipo: al cambiar la version se recrea la base en vez de migrar
+                    .fallbackToDestructiveMigration()
+                    .build().also { instancia = it }
             }
     }
 }

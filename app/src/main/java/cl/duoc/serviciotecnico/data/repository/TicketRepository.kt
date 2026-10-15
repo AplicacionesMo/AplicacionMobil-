@@ -1,7 +1,9 @@
 package cl.duoc.serviciotecnico.data.repository
 
+import cl.duoc.serviciotecnico.data.local.dao.CambioEstadoDao
 import cl.duoc.serviciotecnico.data.local.dao.GuiaDao
 import cl.duoc.serviciotecnico.data.local.dao.TicketDao
+import cl.duoc.serviciotecnico.data.local.entity.CambioEstado
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.domain.model.Prioridad
@@ -10,7 +12,8 @@ import java.time.LocalDateTime
 
 class TicketRepository(
     private val ticketDao: TicketDao,
-    private val guiaDao: GuiaDao
+    private val guiaDao: GuiaDao,
+    private val cambioEstadoDao: CambioEstadoDao
 ) {
     fun observarTickets(): Flow<List<Ticket>> = ticketDao.observarTodos()
 
@@ -68,6 +71,40 @@ class TicketRepository(
             ticket.copy(
                 estado = EstadoTicket.CANCELADO,
                 motivoCancelacion = motivo
+            )
+        )
+    }
+
+    fun observarHistorial(ticketId: String): Flow<List<CambioEstado>> =
+        cambioEstadoDao.observarPorTicket(ticketId)
+
+    /**
+     * Aplica un cambio de estado y deja registro con el comentario y las fotos.
+     * Si el nuevo estado es Cerrado, el comentario queda como la solucion.
+     */
+    suspend fun registrarCambioDeEstado(
+        ticketId: String,
+        nuevoEstado: EstadoTicket,
+        comentario: String,
+        urisDeFotos: List<String>,
+        latitud: Double?,
+        longitud: Double?
+    ) {
+        val ticket = ticketDao.obtenerPorId(ticketId) ?: return
+        when (nuevoEstado) {
+            EstadoTicket.CERRADO -> cerrar(ticketId, comentario)
+            EstadoTicket.CANCELADO -> cancelar(ticketId, comentario)
+            else -> cambiarEstado(ticketId, nuevoEstado)
+        }
+        cambioEstadoDao.insertar(
+            CambioEstado(
+                ticketId = ticketId,
+                estadoAnterior = ticket.estado,
+                estadoNuevo = nuevoEstado,
+                comentario = comentario,
+                urisDeFotos = urisDeFotos,
+                latitud = latitud,
+                longitud = longitud
             )
         )
     }
