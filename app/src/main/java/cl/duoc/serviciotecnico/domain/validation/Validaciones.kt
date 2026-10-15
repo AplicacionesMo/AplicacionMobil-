@@ -17,5 +17,11 @@ object Validaciones {
 
     fun serieValida(serie: String): String? = noVacio(serie, "El numero de serie")
 
+    fun correoValido(correo: String): String? = when {
+        correo.isBlank() -> "El correo es obligatorio"
+        !correo.contains("@") -> "El correo debe tener @"
+        else -> null
+    }
+
     fun todoCorrecto(vararg errores: String?): Boolean = errores.all { it == null }
 }

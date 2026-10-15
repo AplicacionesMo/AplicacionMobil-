@@ -15,12 +15,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,6 +47,7 @@ private val formatoFecha = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")
 fun ListadoTicketsScreen(
     onCrearTicket: () -> Unit,
     onAbrirTicket: (String) -> Unit,
+    onSesionCerrada: () -> Unit = {},
     vm: ListadoTicketsViewModel = viewModel(factory = ListadoTicketsViewModel.Factory)
 ) {
     val tickets by vm.tickets.collectAsStateWithLifecycle()
@@ -53,7 +56,15 @@ fun ListadoTicketsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tickets") }
+                title = { Text("Tickets") },
+                actions = {
+                    IconButton(onClick = {
+                        vm.cerrarSesion()
+                        onSesionCerrada()
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesion")
+                    }
+                }
             )
         },
         floatingActionButton = {
