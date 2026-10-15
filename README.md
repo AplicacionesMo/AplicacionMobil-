@@ -8,13 +8,12 @@ Asignatura **DSY1105 — Desarrollo de Aplicaciones Móviles** · Evaluación Pa
 
 ## Integrantes
 
-| Nombre y apellido | Responsabilidad |
-|---|---|
-| _(completar)_ | Cimiento del proyecto, listado y formulario de tickets |
-| _(completar)_ | Detalle del ticket, estados, cierre, cancelación y guías de servicio |
-| _(completar)_ | Cámara, ubicación, permisos, animaciones y documentación |
+| Nombre y apellido  | Responsabilidad |
+|--------------------|---|
+| _Mathias Soto_     | Cimiento del proyecto, listado y formulario de tickets |
+| Camilo Godoy       | Detalle del ticket, estados, cierre, cancelación y guías de servicio |
+| Patricio Ormazabal | Cámara, ubicación, permisos, animaciones y documentación |
 
-Número de equipo: _(completar)_
 
 ## Funcionalidades
 
