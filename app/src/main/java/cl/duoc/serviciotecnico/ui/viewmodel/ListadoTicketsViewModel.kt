@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import cl.duoc.serviciotecnico.ServicioTecnicoApp
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
+import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 class ListadoTicketsViewModel(
-    repository: TicketRepository
+    repository: TicketRepository,
+    private val sesionRepository: SesionRepository
 ) : ViewModel() {
 
     // null = todos los estados
@@ -38,11 +40,15 @@ class ListadoTicketsViewModel(
         _filtro.value = estado
     }
 
+    fun cerrarSesion() {
+        sesionRepository.cerrarSesion()
+    }
+
     companion object {
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ServicioTecnicoApp
-                ListadoTicketsViewModel(app.ticketRepository)
+                ListadoTicketsViewModel(app.ticketRepository, app.sesionRepository)
             }
         }
     }

@@ -21,6 +21,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 
 @Composable
 fun CampoTextoValidado(
@@ -33,7 +35,8 @@ fun CampoTextoValidado(
     lineasMaximas: Int = 1,
     tipoDeTeclado: KeyboardType = KeyboardType.Text,
     accionDelTeclado: ImeAction = ImeAction.Next,
-    habilitado: Boolean = true
+    habilitado: Boolean = true,
+    esClave: Boolean = false
 ) {
     val tieneError = error != null
 
@@ -46,6 +49,8 @@ fun CampoTextoValidado(
                 if (tieneError) contentDescription = "$etiqueta, con error: $error"
             },
         enabled = habilitado,
+        // En campos de contrasena se ocultan los caracteres
+        visualTransformation = if (esClave) PasswordVisualTransformation() else VisualTransformation.None,
         label = { Text(if (obligatorio) "$etiqueta *" else etiqueta) },
         isError = tieneError,
         singleLine = lineasMaximas == 1,

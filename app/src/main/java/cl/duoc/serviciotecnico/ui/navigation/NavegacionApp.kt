@@ -5,16 +5,20 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import cl.duoc.serviciotecnico.ServicioTecnicoApp
 import cl.duoc.serviciotecnico.ui.screens.DetalleGuiaScreen
 import cl.duoc.serviciotecnico.ui.screens.DetalleTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioGuiaScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.ListadoTicketsScreen
+import cl.duoc.serviciotecnico.ui.screens.LoginScreen
 
 private const val DURACION = 320
 
@@ -22,9 +26,15 @@ private const val DURACION = 320
 fun NavegacionApp() {
     val navController = rememberNavController()
 
+    // Si ya hay una sesion guardada, se entra directo al listado
+    val app = LocalContext.current.applicationContext as ServicioTecnicoApp
+    val inicio = remember {
+        if (app.sesionRepository.haySesionActiva()) Rutas.LISTADO_TICKETS else Rutas.LOGIN
+    }
+
     NavHost(
         navController = navController,
-        startDestination = Rutas.LISTADO_TICKETS,
+        startDestination = inicio,
         enterTransition = {
             slideIntoContainer(
                 towards = AnimatedContentTransitionScope.SlideDirection.Left,
@@ -51,10 +61,26 @@ fun NavegacionApp() {
         }
     ) {
 
+        composable(Rutas.LOGIN) {
+            LoginScreen(
+                onIngresado = {
+                    // Se saca el login de la pila para que "atras" no vuelva a el
+                    navController.navigate(Rutas.LISTADO_TICKETS) {
+                        popUpTo(Rutas.LOGIN) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(Rutas.LISTADO_TICKETS) {
             ListadoTicketsScreen(
                 onCrearTicket = { navController.navigate(Rutas.formularioTicket()) },
-                onAbrirTicket = { ticketId -> navController.navigate(Rutas.detalleTicket(ticketId)) }
+                onAbrirTicket = { ticketId -> navController.navigate(Rutas.detalleTicket(ticketId)) },
+                onSesionCerrada = {
+                    navController.navigate(Rutas.LOGIN) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -109,6 +135,5 @@ fun NavegacionApp() {
                 onVolver = { navController.popBackStack() }
             )
         }
-
     }
 }

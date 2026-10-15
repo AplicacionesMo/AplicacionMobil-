@@ -2,6 +2,8 @@ package cl.duoc.serviciotecnico.ui.navigation
 
 object Rutas {
 
+    const val LOGIN = "login"
+
     const val LISTADO_TICKETS = "tickets"
 
     const val FORMULARIO_TICKET = "tickets/formulario?ticketId={ticketId}"
