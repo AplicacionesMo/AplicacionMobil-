@@ -7,7 +7,9 @@ build/
 captures/
 .externalNativeBuild/
 .cxx/
+# El APK firmado se versiona en la carpeta apk/ (lo pide la evaluacion)
 *.apk
+!apk/*.apk
 *.aab
 *.ap_
 *.dex

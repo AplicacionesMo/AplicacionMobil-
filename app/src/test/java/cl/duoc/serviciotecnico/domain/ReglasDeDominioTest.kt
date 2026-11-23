@@ -1,0 +1,78 @@
+package cl.duoc.serviciotecnico.domain
+
+import cl.duoc.serviciotecnico.domain.model.ClimaActual
+import cl.duoc.serviciotecnico.domain.model.EstadoTicket
+import cl.duoc.serviciotecnico.domain.model.Rol
+import cl.duoc.serviciotecnico.util.Datos
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ReglasDeDominioTest {
+
+    // ---------- Estados ----------
+
+    @Test
+    fun `solo cerrado y cancelado son finales`() {
+        val finales = EstadoTicket.entries.filter { it.esFinal }
+        assertEquals(listOf(EstadoTicket.CERRADO, EstadoTicket.CANCELADO), finales)
+        assertEquals(7, EstadoTicket.intermedios.size)
+    }
+
+    @Test
+    fun `un ticket final no es editable`() {
+        assertTrue(Datos.ticket(EstadoTicket.TRANSITO).editable)
+        assertFalse(Datos.ticket(EstadoTicket.CERRADO).editable)
+        assertFalse(Datos.ticket(EstadoTicket.CANCELADO).editable)
+    }
+
+    // ---------- Roles ----------
+
+    @Test
+    fun `el tecnico puede cerrar pero no cancelar ni eliminar`() {
+        assertTrue(EstadoTicket.CERRADO in Rol.TECNICO.estadosPermitidos)
+        assertFalse(EstadoTicket.CANCELADO in Rol.TECNICO.estadosPermitidos)
+        assertFalse(Rol.TECNICO.puedeEliminarTickets)
+    }
+
+    @Test
+    fun `el coordinador puede cancelar y eliminar`() {
+        assertTrue(EstadoTicket.CANCELADO in Rol.COORDINADOR.estadosPermitidos)
+        assertTrue(Rol.COORDINADOR.puedeEliminarTickets)
+    }
+
+    @Test
+    fun `un rol desconocido se trata como tecnico`() {
+        assertEquals(Rol.COORDINADOR, Rol.desde("COORDINADOR"))
+        assertEquals(Rol.TECNICO, Rol.desde("ADMIN"))
+        assertEquals(Rol.TECNICO, Rol.desde(null))
+    }
+
+    // ---------- Clima (API externa) ----------
+
+    @Test
+    fun `codigos WMO se traducen a texto`() {
+        assertEquals("Despejado", ClimaActual.describir(0))
+        assertEquals("Nublado", ClimaActual.describir(3))
+        assertEquals("Lluvia", ClimaActual.describir(63))
+        assertEquals("Lluvia", ClimaActual.describir(81))
+        assertEquals("Tormenta", ClimaActual.describir(95))
+        assertEquals("Sin datos", ClimaActual.describir(-1))
+    }
+
+    @Test
+    fun `la recomendacion depende de la temperatura`() {
+        assertTrue(ClimaActual.recomendar(31.0).startsWith("Calor"))
+        assertTrue(ClimaActual.recomendar(28.0).startsWith("Calor"))
+        assertTrue(ClimaActual.recomendar(5.0).startsWith("Frío"))
+        assertTrue(ClimaActual.recomendar(18.0).startsWith("Templado"))
+    }
+
+    @Test
+    fun `clima actual expone descripcion y recomendacion`() {
+        val clima = ClimaActual(temperatura = 30.0, humedad = 20, viento = 10.0, codigo = 0)
+        assertEquals("Despejado", clima.descripcion)
+        assertTrue(clima.recomendacion.contains("aire acondicionado"))
+    }
+}

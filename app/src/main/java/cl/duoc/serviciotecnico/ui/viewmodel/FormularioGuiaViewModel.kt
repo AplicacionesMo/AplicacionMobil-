@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import cl.duoc.serviciotecnico.ServicioTecnicoApp
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
+import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
+import cl.duoc.serviciotecnico.data.remote.capturarErrores
 import cl.duoc.serviciotecnico.data.repository.GuiaRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
@@ -18,7 +20,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
 
 data class FormularioGuiaState(
     val direccion: String = "",
@@ -123,12 +124,12 @@ class FormularioGuiaViewModel(
 
         viewModelScope.launch {
             _estado.update { it.copy(guardando = true) }
-            try {
+            // POST /api/v1/guias en ms-guias; el servidor asigna el numero correlativo
+            capturarErrores {
                 guiaRepository.crear(
                     ticketId = ticketId,
                     equipoId = equipoId,
                     direccion = actual.direccion.trim(),
-                    fecha = LocalDateTime.now(),
                     tecnico = actual.tecnico.trim(),
                     trabajoRealizado = actual.trabajoRealizado.trim(),
                     repuestos = actual.repuestos.trim(),
@@ -138,11 +139,12 @@ class FormularioGuiaViewModel(
                     longitud = actual.longitud,
                     urisDeFotos = actual.fotos
                 )
-                _estado.update { it.copy(guardando = false, guardado = true) }
-            } catch (e: Exception) {
-                _estado.update { it.copy(guardando = false) }
-                _mensaje.value = "No se pudo guardar la guia"
             }
+                .onSuccess { _estado.update { it.copy(guardando = false, guardado = true) } }
+                .onFailure { error ->
+                    _estado.update { it.copy(guardando = false) }
+                    _mensaje.value = ErrorDeRed.mensaje(error)
+                }
         }
     }
 

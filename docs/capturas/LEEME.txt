@@ -1,0 +1,1 @@
+Capturas para el README: apk-firmado.png, jks.png, trello.png, swagger.png, app-*.png

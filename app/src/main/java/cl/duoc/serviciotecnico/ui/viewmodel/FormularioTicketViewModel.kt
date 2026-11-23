@@ -7,10 +7,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import cl.duoc.serviciotecnico.ServicioTecnicoApp
-import cl.duoc.serviciotecnico.data.local.entity.Equipo
-import cl.duoc.serviciotecnico.data.local.entity.Ticket
+import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
+import cl.duoc.serviciotecnico.data.remote.capturarErrores
 import cl.duoc.serviciotecnico.data.repository.EquipoRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
+import cl.duoc.serviciotecnico.domain.model.DatosTicket
 import cl.duoc.serviciotecnico.domain.model.Prioridad
 import cl.duoc.serviciotecnico.domain.model.Propiedad
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
@@ -64,10 +65,6 @@ class FormularioTicketViewModel(
     private val _estado = MutableStateFlow(FormularioTicketUiState(esEdicion = ticketId != null))
     val estado: StateFlow<FormularioTicketUiState> = _estado.asStateFlow()
 
-    // Se guardan para poder hacer copy() al editar sin perder estado, fechas, etc.
-    private var ticketOriginal: Ticket? = null
-    private var equipoOriginal: Equipo? = null
-
     init {
         if (ticketId != null) cargarTicket(ticketId) else recalcularErrores()
     }
@@ -81,8 +78,6 @@ class FormularioTicketViewModel(
                 _estado.update { it.copy(cargando = false, mensaje = "No se encontro el ticket") }
                 return@launch
             }
-            ticketOriginal = ticket
-            equipoOriginal = equipo
             _estado.update {
                 it.copy(
                     titulo = ticket.titulo,
@@ -160,64 +155,30 @@ class FormularioTicketViewModel(
 
         _estado.update { it.copy(guardando = true) }
         viewModelScope.launch {
-            try {
-                if (s.esEdicion) actualizar(s) else crear(s)
-                _estado.update { it.copy(guardando = false, guardado = true) }
-            } catch (e: Exception) {
-                _estado.update { it.copy(guardando = false, mensaje = "No se pudo guardar el ticket") }
+            val datos = s.aDatos()
+            // POST (crear) o PUT (editar) contra ms-tickets; el servidor asigna numero y fecha
+            capturarErrores {
+                if (ticketId != null) ticketRepository.actualizar(ticketId, datos)
+                else ticketRepository.crear(datos)
             }
+                .onSuccess { _estado.update { it.copy(guardando = false, guardado = true) } }
+                .onFailure { error ->
+                    _estado.update { it.copy(guardando = false, mensaje = ErrorDeRed.mensaje(error)) }
+                }
         }
     }
 
-    private suspend fun crear(s: FormularioTicketUiState) {
-        // Si el equipo ya existe (misma serie), se reutiliza con los datos nuevos
-        val existente = equipoRepository.buscarPorSerie(s.serie.trim())
-        val equipo = if (existente != null) {
-            existente.copy(
-                nombre = s.nombreEquipo.trim(),
-                modelo = s.modelo.trim(),
-                propiedad = s.propiedad
-            ).also { equipoRepository.actualizar(it) }
-        } else {
-            equipoRepository.crear(
-                nombre = s.nombreEquipo.trim(),
-                modelo = s.modelo.trim(),
-                serie = s.serie.trim(),
-                propiedad = s.propiedad
-            )
-        }
-        // El repositorio asigna el numero correlativo y la fecha de creacion
-        ticketRepository.crear(
-            titulo = s.titulo.trim(),
-            descripcion = s.descripcion.trim(),
-            cliente = s.cliente.trim(),
-            direccion = s.direccion.trim(),
-            prioridad = s.prioridad,
-            equipoId = equipo.id
-        )
-    }
-
-    private suspend fun actualizar(s: FormularioTicketUiState) {
-        val ticket = ticketOriginal ?: return
-        val equipo = equipoOriginal ?: return
-        equipoRepository.actualizar(
-            equipo.copy(
-                nombre = s.nombreEquipo.trim(),
-                modelo = s.modelo.trim(),
-                serie = s.serie.trim(),
-                propiedad = s.propiedad
-            )
-        )
-        ticketRepository.actualizar(
-            ticket.copy(
-                titulo = s.titulo.trim(),
-                descripcion = s.descripcion.trim(),
-                cliente = s.cliente.trim(),
-                direccion = s.direccion.trim(),
-                prioridad = s.prioridad
-            )
-        )
-    }
+    private fun FormularioTicketUiState.aDatos() = DatosTicket(
+        titulo = titulo,
+        descripcion = descripcion,
+        cliente = cliente,
+        direccion = direccion,
+        prioridad = prioridad,
+        nombreEquipo = nombreEquipo,
+        modelo = modelo,
+        serie = serie,
+        propiedad = propiedad
+    )
 
     companion object {
         fun factory(ticketId: String?): ViewModelProvider.Factory = viewModelFactory {

@@ -6,9 +6,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import cl.duoc.serviciotecnico.ServicioTecnicoApp
+import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
+import cl.duoc.serviciotecnico.data.remote.capturarErrores
 import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,15 +77,12 @@ class LoginViewModel(
 
         _estado.update { it.copy(ingresando = true, mensaje = null) }
         viewModelScope.launch {
-            delay(600) // simula la espera de un servidor real
-            val correcto = sesionRepository.iniciarSesion(s.correo, s.clave)
-            _estado.update {
-                if (correcto) {
-                    it.copy(ingresando = false, ingresado = true)
-                } else {
-                    it.copy(ingresando = false, mensaje = "Correo o contraseña incorrectos")
+            // POST /api/v1/auth/login en ms-usuarios
+            capturarErrores { sesionRepository.iniciarSesion(s.correo, s.clave) }
+                .onSuccess { _estado.update { it.copy(ingresando = false, ingresado = true) } }
+                .onFailure { error ->
+                    _estado.update { it.copy(ingresando = false, mensaje = ErrorDeRed.mensaje(error)) }
                 }
-            }
         }
     }
 

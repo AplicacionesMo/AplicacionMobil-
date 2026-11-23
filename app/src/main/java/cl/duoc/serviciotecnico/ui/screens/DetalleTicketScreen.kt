@@ -19,8 +19,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -29,6 +32,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -65,7 +70,6 @@ import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketUiState
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketViewModel
 import cl.duoc.serviciotecnico.ui.viewmodel.FormularioCambioEstado
 import cl.duoc.serviciotecnico.ui.viewmodel.MAX_FOTOS_CAMBIO
-import cl.duoc.serviciotecnico.ui.viewmodel.estadosParaTecnico
 import cl.duoc.serviciotecnico.util.ArchivosDeFoto
 import cl.duoc.serviciotecnico.util.Mapas
 import java.time.format.DateTimeFormatter
@@ -80,6 +84,7 @@ fun DetalleTicketScreen(
     onEditarTicket: () -> Unit,
     onNuevaGuia: () -> Unit,
     onAbrirGuia: (String) -> Unit,
+    onEliminado: () -> Unit = onVolver,
     vm: DetalleTicketViewModel = viewModel(factory = DetalleTicketViewModel.factory(ticketId))
 ) {
     val estado by vm.estado.collectAsStateWithLifecycle()
@@ -90,6 +95,29 @@ fun DetalleTicketScreen(
             snackbar.showSnackbar(it)
             vm.mensajeMostrado()
         }
+    }
+
+    // Al eliminar con exito se vuelve al listado
+    LaunchedEffect(estado.eliminado) {
+        if (estado.eliminado) onEliminado()
+    }
+
+    var confirmarEliminar by remember { mutableStateOf(false) }
+    if (confirmarEliminar) {
+        AlertDialog(
+            onDismissRequest = { confirmarEliminar = false },
+            title = { Text("Eliminar ticket") },
+            text = { Text("Se eliminará el ticket y su historial. Solo es posible si no tiene guías emitidas.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmarEliminar = false
+                    vm.eliminarTicket()
+                }) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarEliminar = false }) { Text("Cancelar") }
+            }
+        )
     }
 
     val ticket = estado.ticket
@@ -104,6 +132,15 @@ fun DetalleTicketScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = vm::sincronizar, enabled = !estado.sincronizando) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Actualizar")
+                    }
+                    // Solo el coordinador ve el boton de eliminar
+                    if (estado.puedeEliminar) {
+                        IconButton(onClick = { confirmarEliminar = true }, enabled = !estado.eliminando) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Eliminar ticket")
+                        }
+                    }
                     // Si el ticket esta cerrado o cancelado, editar queda deshabilitado
                     IconButton(onClick = onEditarTicket, enabled = estado.editable) {
                         Icon(Icons.Filled.Edit, contentDescription = "Editar ticket")
@@ -122,6 +159,9 @@ fun DetalleTicketScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) }
     ) { relleno ->
+        if (estado.sincronizando) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(relleno))
+        }
         when {
             estado.cargando -> Box(
                 Modifier.fillMaxSize().padding(relleno),
@@ -211,6 +251,7 @@ private fun ContenidoDetalle(
             item {
                 FormularioDeCambio(
                     actual = ticket.estado,
+                    opciones = estado.estadosDisponibles,
                     formulario = estado.formulario,
                     onSeleccionarEstado = vm::seleccionarEstado,
                     onComentarioCambia = vm::cambiarComentario,
@@ -273,6 +314,7 @@ private fun ContenidoDetalle(
 @Composable
 private fun FormularioDeCambio(
     actual: EstadoTicket,
+    opciones: List<EstadoTicket>,
     formulario: FormularioCambioEstado,
     onSeleccionarEstado: (EstadoTicket) -> Unit,
     onComentarioCambia: (String) -> Unit,
@@ -296,7 +338,7 @@ private fun FormularioDeCambio(
             // 1. Nuevo estado
             SelectorDeEstado(
                 seleccionado = formulario.estadoSeleccionado,
-                actual = actual,
+                opciones = opciones,
                 habilitado = !formulario.enviando,
                 onSeleccionar = onSeleccionarEstado
             )
@@ -374,7 +416,7 @@ private fun FormularioDeCambio(
 @Composable
 private fun SelectorDeEstado(
     seleccionado: EstadoTicket?,
-    actual: EstadoTicket,
+    opciones: List<EstadoTicket>,
     habilitado: Boolean,
     onSeleccionar: (EstadoTicket) -> Unit
 ) {
@@ -393,7 +435,7 @@ private fun SelectorDeEstado(
             Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
         }
         DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
-            estadosParaTecnico.filter { it != actual }.forEach { opcion ->
+            opciones.forEach { opcion ->
                 DropdownMenuItem(
                     text = {
                         Text(

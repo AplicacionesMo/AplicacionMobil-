@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -17,7 +19,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Thermostat
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -37,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.ui.components.EtiquetaEstado
+import cl.duoc.serviciotecnico.ui.viewmodel.EstadoClima
 import cl.duoc.serviciotecnico.ui.viewmodel.ListadoTicketsViewModel
 import java.time.format.DateTimeFormatter
 
@@ -52,12 +61,29 @@ fun ListadoTicketsScreen(
 ) {
     val tickets by vm.tickets.collectAsStateWithLifecycle()
     val filtro by vm.filtro.collectAsStateWithLifecycle()
+    val sincronizando by vm.sincronizando.collectAsStateWithLifecycle()
+    val error by vm.error.collectAsStateWithLifecycle()
+    val clima by vm.clima.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tickets") },
+                title = {
+                    Column {
+                        Text("Tickets")
+                        vm.usuario?.let {
+                            Text(
+                                "${it.nombre} · ${it.rol.etiqueta}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
                 actions = {
+                    IconButton(onClick = vm::refrescar, enabled = !sincronizando) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Actualizar desde el servidor")
+                    }
                     IconButton(onClick = {
                         vm.cerrarSesion()
                         onSesionCerrada()
@@ -74,6 +100,14 @@ fun ListadoTicketsScreen(
         }
     ) { relleno ->
         Column(modifier = Modifier.fillMaxSize().padding(relleno)) {
+
+            if (sincronizando) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            error?.let { AvisoSinConexion(it) }
+
+            TarjetaClima(estado = clima, onReintentar = vm::cargarClima)
 
             FiltroDeEstados(
                 seleccionado = filtro,
@@ -167,6 +201,87 @@ private fun TarjetaTicket(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/** Aviso cuando el microservicio no responde: la lista sigue mostrando la cache de Room. */
+@Composable
+private fun AvisoSinConexion(texto: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Filled.WifiOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                texto,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+    }
+}
+
+/** API externa Open-Meteo: clima actual en Santiago y su efecto en la demanda. */
+@Composable
+private fun TarjetaClima(estado: EstadoClima, onReintentar: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Filled.Thermostat,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(Modifier.width(12.dp))
+            when (estado) {
+                EstadoClima.Cargando -> {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Consultando el clima…", style = MaterialTheme.typography.bodyMedium)
+                }
+
+                is EstadoClima.Listo -> Column(Modifier.weight(1f)) {
+                    Text(
+                        "Santiago ahora: %.1f °C · %s".format(estado.clima.temperatura, estado.clima.descripcion),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        "Humedad ${estado.clima.humedad}% · Viento %.0f km/h".format(estado.clima.viento),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        estado.clima.recomendacion,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+
+                is EstadoClima.Error -> {
+                    Text(
+                        estado.mensaje,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onReintentar) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Reintentar clima")
+                    }
+                }
+            }
         }
     }
 }

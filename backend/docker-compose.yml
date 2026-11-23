@@ -1,0 +1,14 @@
+# Opcional: MySQL 8 en Docker (usuario root sin contrasena, igual que XAMPP)
+#   docker compose up -d
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: tacticaldev-mysql
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-datos:/var/lib/mysql
+volumes:
+  mysql-datos:

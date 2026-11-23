@@ -18,7 +18,7 @@ import cl.duoc.serviciotecnico.data.local.entity.Ticket
 
 @Database(
     entities = [Ticket::class, Equipo::class, Guia::class, FotoGuia::class, CambioEstado::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -40,7 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "servicio_tecnico.db"
                 )
-                    // Prototipo: al cambiar la version se recrea la base en vez de migrar
+                    // Room es una cache del servidor: si cambia la version se recrea y se vuelve a descargar
                     .fallbackToDestructiveMigration()
                     .build().also { instancia = it }
             }

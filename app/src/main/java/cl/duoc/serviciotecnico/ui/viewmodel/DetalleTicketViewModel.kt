@@ -11,10 +11,14 @@ import cl.duoc.serviciotecnico.data.local.entity.CambioEstado
 import cl.duoc.serviciotecnico.data.local.entity.Equipo
 import cl.duoc.serviciotecnico.data.local.entity.Guia
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
+import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
+import cl.duoc.serviciotecnico.data.remote.capturarErrores
 import cl.duoc.serviciotecnico.data.repository.EquipoRepository
 import cl.duoc.serviciotecnico.data.repository.GuiaRepository
+import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
+import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,13 +33,6 @@ import kotlinx.coroutines.launch
 
 /** Maximo de fotos que se pueden adjuntar a un cambio de estado. */
 const val MAX_FOTOS_CAMBIO = 5
-
-/**
- * Estados que el tecnico puede elegir: los siete intermedios y Cerrado.
- * Cancelado no aparece porque solo lo puede hacer el coordinador.
- */
-val estadosParaTecnico: List<EstadoTicket> =
-    EstadoTicket.intermedios + EstadoTicket.CERRADO
 
 /** Formulario de cambio de estado: estado nuevo, comentario y fotos. */
 data class FormularioCambioEstado(
@@ -60,24 +57,40 @@ data class DetalleTicketUiState(
     val guias: List<Guia> = emptyList(),
     val historial: List<CambioEstado> = emptyList(),
     val formulario: FormularioCambioEstado = FormularioCambioEstado(),
-    val mensaje: String? = null
+    val mensaje: String? = null,
+    val rol: Rol = Rol.TECNICO,
+    val sincronizando: Boolean = false,
+    val eliminando: Boolean = false,
+    val eliminado: Boolean = false
 ) {
     /** Cerrado o cancelado = solo lectura. */
     val editable: Boolean get() = ticket?.editable == true
+
+    /** El tecnico no ve "Cancelado" en la lista; el coordinador si. */
+    val estadosDisponibles: List<EstadoTicket>
+        get() = rol.estadosPermitidos.filter { it != ticket?.estado }
+
+    val puedeEliminar: Boolean get() = rol.puedeEliminarTickets && ticket != null
 }
 
 private data class EstadoLocal(
     val formulario: FormularioCambioEstado = FormularioCambioEstado(),
-    val mensaje: String? = null
+    val mensaje: String? = null,
+    val sincronizando: Boolean = false,
+    val eliminando: Boolean = false,
+    val eliminado: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetalleTicketViewModel(
     private val ticketId: String,
     private val repository: TicketRepository,
-    guiaRepository: GuiaRepository,
-    equipoRepository: EquipoRepository
+    private val guiaRepository: GuiaRepository,
+    equipoRepository: EquipoRepository,
+    sesionRepository: SesionRepository
 ) : ViewModel() {
+
+    private val rol: Rol = sesionRepository.rolActual()
 
     private val local = MutableStateFlow(EstadoLocal())
 
@@ -103,12 +116,41 @@ class DetalleTicketViewModel(
     }
 
     val estado: StateFlow<DetalleTicketUiState> = combine(datosFlow, local) { datos, l ->
-        datos.copy(formulario = l.formulario, mensaje = l.mensaje)
+        datos.copy(
+            formulario = l.formulario,
+            mensaje = l.mensaje,
+            rol = rol,
+            sincronizando = l.sincronizando,
+            eliminando = l.eliminando,
+            eliminado = l.eliminado
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = DetalleTicketUiState()
     )
+
+    init {
+        sincronizar()
+    }
+
+    /** GET del ticket, su historial (ms-tickets) y sus guias (ms-guias). */
+    fun sincronizar() {
+        if (local.value.sincronizando) return
+        viewModelScope.launch {
+            local.update { it.copy(sincronizando = true) }
+            val resultado = capturarErrores {
+                repository.sincronizarTicket(ticketId)
+                guiaRepository.sincronizarGuiasDeTicket(ticketId)
+            }
+            local.update {
+                it.copy(
+                    sincronizando = false,
+                    mensaje = resultado.exceptionOrNull()?.let { e -> ErrorDeRed.mensaje(e) } ?: it.mensaje
+                )
+            }
+        }
+    }
 
     // ---------- Eventos del formulario ----------
 
@@ -175,16 +217,39 @@ class DetalleTicketViewModel(
                 }
                 return@launch
             }
-            repository.registrarCambioDeEstado(
-                ticketId = ticketId,
-                nuevoEstado = nuevo,
-                comentario = f.comentario.trim(),
-                urisDeFotos = f.fotos,
-                latitud = f.latitud,
-                longitud = f.longitud
-            )
-            // Formulario limpio para el siguiente cambio
-            local.value = EstadoLocal(mensaje = "Estado cambiado a ${nuevo.etiqueta}")
+            // PATCH /api/v1/tickets/{id}/estado en ms-tickets (el servidor vuelve a validar todo)
+            capturarErrores {
+                repository.registrarCambioDeEstado(
+                    ticketId = ticketId,
+                    nuevoEstado = nuevo,
+                    comentario = f.comentario.trim(),
+                    urisDeFotos = f.fotos,
+                    latitud = f.latitud,
+                    longitud = f.longitud,
+                    rol = rol
+                )
+            }
+                .onSuccess {
+                    // Formulario limpio para el siguiente cambio
+                    local.update { EstadoLocal(mensaje = "Estado cambiado a ${nuevo.etiqueta}") }
+                }
+                .onFailure { e ->
+                    actualizarFormulario { it.copy(enviando = false) }
+                    mostrar(ErrorDeRed.mensaje(e))
+                }
+        }
+    }
+
+    // ---------- Eliminar (solo coordinador) ----------
+
+    /** DELETE /api/v1/tickets/{id}. El servidor rechaza si el ticket tiene guias. */
+    fun eliminarTicket() {
+        if (!rol.puedeEliminarTickets || local.value.eliminando) return
+        viewModelScope.launch {
+            local.update { it.copy(eliminando = true) }
+            capturarErrores { repository.eliminar(ticketId, rol) }
+                .onSuccess { local.update { it.copy(eliminando = false, eliminado = true) } }
+                .onFailure { e -> local.update { it.copy(eliminando = false, mensaje = ErrorDeRed.mensaje(e)) } }
         }
     }
 
@@ -210,7 +275,8 @@ class DetalleTicketViewModel(
                     ticketId = ticketId,
                     repository = app.ticketRepository,
                     guiaRepository = app.guiaRepository,
-                    equipoRepository = app.equipoRepository
+                    equipoRepository = app.equipoRepository,
+                    sesionRepository = app.sesionRepository
                 )
             }
         }

@@ -110,7 +110,8 @@ fun NavegacionApp() {
                 onVolver = { navController.popBackStack() },
                 onEditarTicket = { navController.navigate(Rutas.formularioTicket(ticketId)) },
                 onNuevaGuia = { navController.navigate(Rutas.formularioGuia(ticketId)) },
-                onAbrirGuia = { guiaId -> navController.navigate(Rutas.detalleGuia(guiaId)) }
+                onAbrirGuia = { guiaId -> navController.navigate(Rutas.detalleGuia(guiaId)) },
+                onEliminado = { navController.popBackStack() }
             )
         }
 

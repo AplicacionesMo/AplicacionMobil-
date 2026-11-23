@@ -15,13 +15,8 @@ import java.util.UUID
             parentColumns = ["id"],
             childColumns = ["ticketId"],
             onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = Equipo::class,
-            parentColumns = ["id"],
-            childColumns = ["equipoId"],
-            onDelete = ForeignKey.RESTRICT
         )
+        // El equipo no lleva llave foranea: en el servidor vive en otro microservicio
     ],
     indices = [Index(value = ["ticketId"]), Index(value = ["equipoId"])]
 )

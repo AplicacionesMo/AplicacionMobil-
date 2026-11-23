@@ -80,7 +80,7 @@ fun LoginScreen(
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Ingresa con tu cuenta de técnico",
+                text = "Ingresa con tu cuenta de técnico o coordinador",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -161,11 +161,12 @@ fun LoginScreen(
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
-                        "Usuario de prueba",
+                        "Usuarios de prueba (ms-usuarios)",
                         style = MaterialTheme.typography.labelLarge
                     )
                     Text(
-                        "${SesionRepository.USUARIO_DEMO}\n${SesionRepository.CLAVE_DEMO}",
+                        "Técnico: ${SesionRepository.USUARIO_TECNICO} / ${SesionRepository.CLAVE_TECNICO}\n" +
+                            "Coordinador: ${SesionRepository.USUARIO_COORDINADOR} / ${SesionRepository.CLAVE_COORDINADOR}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

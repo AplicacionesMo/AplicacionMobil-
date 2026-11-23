@@ -1,0 +1,1 @@
+Coloca aquí el APK firmado: ServicioTecnico-v2.0-release.apk (ver docs/firma-apk.md)
