@@ -260,7 +260,7 @@ private fun TarjetaClima(estado: EstadoClima, onReintentar: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
-                        "Humedad ${estado.clima.humedad}% · Viento %.0f km/h".format(estado.clima.viento),
+                        "Humedad ${estado.clima.humedad}%% · Viento %.0f km/h".format(estado.clima.viento),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
