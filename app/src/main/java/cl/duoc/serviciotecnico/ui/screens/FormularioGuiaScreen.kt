@@ -37,6 +37,7 @@ import cl.duoc.serviciotecnico.ui.components.BotonDeFoto
 import cl.duoc.serviciotecnico.ui.components.BotonDeUbicacion
 import cl.duoc.serviciotecnico.ui.components.BotonGuardar
 import cl.duoc.serviciotecnico.ui.components.CampoTextoValidado
+import cl.duoc.serviciotecnico.ui.components.FichaEsqueleto
 import cl.duoc.serviciotecnico.ui.components.GaleriaDeFotos
 import cl.duoc.serviciotecnico.ui.viewmodel.FormularioGuiaViewModel
 import cl.duoc.serviciotecnico.util.ArchivosDeFoto
@@ -85,11 +86,15 @@ fun FormularioGuiaScreen(
         val actual = ticket
 
         if (actual == null) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(relleno),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(relleno)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                CircularProgressIndicator()
+                FichaEsqueleto(lineas = 3, descripcion = "Cargando el ticket")
+                FichaEsqueleto(lineas = 4, descripcion = "Cargando el formulario")
             }
             return@Scaffold
         }

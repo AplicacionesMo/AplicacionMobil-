@@ -63,6 +63,7 @@ import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.ui.components.BotonGuardar
 import cl.duoc.serviciotecnico.ui.components.CampoTextoValidado
 import cl.duoc.serviciotecnico.ui.components.EtiquetaEstado
+import cl.duoc.serviciotecnico.ui.components.FichaEsqueleto
 import cl.duoc.serviciotecnico.ui.components.GaleriaDeFotos
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketUiState
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketViewModel
@@ -165,10 +166,17 @@ fun DetalleTicketScreen(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(relleno))
         }
         when {
-            estado.cargando -> Box(
-                Modifier.fillMaxSize().padding(relleno),
-                contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
+            // Esqueleto con la forma del detalle: ficha del ticket, equipo y guias
+            estado.cargando -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(relleno)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FichaEsqueleto(lineas = 5, descripcion = "Cargando el ticket")
+                FichaEsqueleto(lineas = 3, descripcion = "Cargando el equipo")
+            }
 
             ticket == null -> Box(
                 Modifier.fillMaxSize().padding(relleno),

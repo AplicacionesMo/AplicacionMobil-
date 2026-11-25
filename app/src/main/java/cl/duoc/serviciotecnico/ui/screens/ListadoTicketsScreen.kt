@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.ui.components.EtiquetaEstado
+import cl.duoc.serviciotecnico.ui.components.ListaDeTicketsEsqueleto
 import cl.duoc.serviciotecnico.ui.viewmodel.EstadoClima
 import cl.duoc.serviciotecnico.ui.viewmodel.ListadoTicketsViewModel
 import java.time.format.DateTimeFormatter
@@ -125,7 +126,11 @@ fun ListadoTicketsScreen(
                 onSeleccionar = vm::cambiarFiltro
             )
 
-            if (tickets.isEmpty()) {
+            // Mientras llegan los datos se muestra el esqueleto. Antes decia "No hay
+            // tickets", que es justo lo contrario de lo que estaba pasando.
+            if (tickets.isEmpty() && sincronizando) {
+                ListaDeTicketsEsqueleto()
+            } else if (tickets.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
