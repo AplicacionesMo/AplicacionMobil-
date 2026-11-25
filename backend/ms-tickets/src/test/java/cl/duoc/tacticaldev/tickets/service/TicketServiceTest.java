@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -383,5 +384,74 @@ class TicketServiceTest {
 
         assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
         verify(ticketRepository, never()).save(any());
+    }
+
+    // ---------- Reapertura de un ticket ya cerrado ----------
+
+    @Test
+    void elCoordinadorReabreUnTicketFinalizado() {
+        Ticket t = ticket(EstadoTicket.FINALIZADO);
+        t.setFechaCierre(LocalDateTime.now());
+        t.setSolucion("Se cambio el capacitor");
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(t));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketResponse r = service.cambiarEstado("t-1",
+                new CambioEstadoRequest(EstadoTicket.ABIERTO, "El equipo volvio a fallar", List.of(), null, null),
+                "COORDINADOR", null);
+
+        assertEquals(EstadoTicket.ABIERTO, r.estado());
+        // Deja de estar cerrado: sin fecha de cierre ni solucion
+        assertNull(r.fechaCierre());
+        assertNull(r.solucion());
+    }
+
+    @Test
+    void tambienSeReabreUnTicketCancelado() {
+        Ticket t = ticket(EstadoTicket.CANCELADO);
+        t.setMotivoCancelacion("El cliente desistio");
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(t));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketResponse r = service.cambiarEstado("t-1",
+                new CambioEstadoRequest(EstadoTicket.ABIERTO, "El cliente se arrepintio", List.of(), null, null),
+                "ADMIN", null);
+
+        assertEquals(EstadoTicket.ABIERTO, r.estado());
+        assertNull(r.motivoCancelacion());
+    }
+
+    @Test
+    void elTecnicoNoPuedeReabrir() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.FINALIZADO)));
+
+        ApiException e = assertThrows(ApiException.class, () -> service.cambiarEstado("t-1",
+                new CambioEstadoRequest(EstadoTicket.ABIERTO, "Quiero seguir trabajandolo", List.of(), null, null),
+                "TECNICO", 7L));
+
+        assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void reabrirSinMotivoLanza400() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.FINALIZADO)));
+
+        ApiException e = assertThrows(ApiException.class, () -> service.cambiarEstado("t-1",
+                new CambioEstadoRequest(EstadoTicket.ABIERTO, "   ", List.of(), null, null),
+                "COORDINADOR", null));
+
+        assertEquals(HttpStatus.BAD_REQUEST, e.getEstado());
+    }
+
+    @Test
+    void unTicketCerradoSoloPuedeIrAAbierto() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.FINALIZADO)));
+
+        ApiException e = assertThrows(ApiException.class, () -> service.cambiarEstado("t-1",
+                new CambioEstadoRequest(EstadoTicket.TRANSITO, "Lo quiero en transito", List.of(), null, null),
+                "COORDINADOR", null));
+
+        assertEquals(HttpStatus.CONFLICT, e.getEstado());
     }
 }

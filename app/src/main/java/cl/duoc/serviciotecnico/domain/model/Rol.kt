@@ -28,6 +28,10 @@ enum class Rol(val etiqueta: String) {
     val puedeEliminarTickets: Boolean
         get() = this != TECNICO
 
+    /** Reabrir un ticket cerrado es excepcional: solo coordinador y administrador. */
+    val puedeReabrirTickets: Boolean
+        get() = this != TECNICO
+
     val puedeGestionarUsuarios: Boolean
         get() = this == ADMIN
 

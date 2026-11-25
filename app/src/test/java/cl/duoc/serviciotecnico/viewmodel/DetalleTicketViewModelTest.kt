@@ -251,4 +251,58 @@ class DetalleTicketViewModelTest {
 
         assertFalse(vm.estado.value.editable)
     }
+
+    // ---------- Reapertura ----------
+
+    @Test
+    fun `un ticket cerrado solo ofrece volver a Abierto`() = runTest {
+        ticket.value = Datos.ticket(EstadoTicket.FINALIZADO)
+        val vm = crearVm(Rol.COORDINADOR)
+
+        val estado = vm.estado.value
+        assertTrue(estado.reabriendo)
+        assertTrue(estado.puedeReabrir)
+        assertEquals(listOf(EstadoTicket.ABIERTO), estado.estadosDisponibles)
+        assertTrue(estado.exigeMotivo)
+    }
+
+    @Test
+    fun `el tecnico no puede reabrir`() = runTest {
+        ticket.value = Datos.ticket(EstadoTicket.FINALIZADO)
+        val vm = crearVm(Rol.TECNICO)
+
+        assertFalse(vm.estado.value.puedeReabrir)
+    }
+
+    @Test
+    fun `reabrir sin motivo no se envia`() = runTest {
+        ticket.value = Datos.ticket(EstadoTicket.FINALIZADO)
+        val vm = crearVm(Rol.COORDINADOR)
+        vm.seleccionarEstado(EstadoTicket.ABIERTO)
+
+        vm.enviarCambioDeEstado()
+
+        assertNotNull(vm.estado.value.formulario.errorMotivo)
+        coVerify(exactly = 0) { tickets.registrarCambioDeEstado(any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `reabrir con motivo se envia al servidor`() = runTest {
+        ticket.value = Datos.ticket(EstadoTicket.FINALIZADO)
+        val vm = crearVm(Rol.COORDINADOR)
+        vm.seleccionarEstado(EstadoTicket.ABIERTO)
+        vm.cambiarMotivo("El equipo volvio a fallar")
+
+        vm.enviarCambioDeEstado()
+
+        coVerify {
+            tickets.registrarCambioDeEstado(
+                ticketId = "t-1",
+                nuevoEstado = EstadoTicket.ABIERTO,
+                rol = Rol.COORDINADOR,
+                comentario = "El equipo volvio a fallar"
+            )
+        }
+        assertEquals("Ticket reabierto", vm.estado.value.mensaje)
+    }
 }

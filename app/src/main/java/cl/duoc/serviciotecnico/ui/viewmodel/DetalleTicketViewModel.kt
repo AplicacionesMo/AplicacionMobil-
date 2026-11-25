@@ -65,9 +65,22 @@ data class DetalleTicketUiState(
     /** Finalizado o cancelado = solo lectura. */
     val editable: Boolean get() = ticket?.editable == true
 
+    /** Un ticket ya cerrado solo puede volver a Abierto. */
+    val reabriendo: Boolean get() = ticket?.estado?.esFinal == true
+
     /** El tecnico no ve "Cancelado" en la lista; el coordinador si. */
     val estadosDisponibles: List<EstadoTicket>
-        get() = rol.estadosPermitidos.filter { it != ticket?.estado }
+        get() = if (reabriendo) {
+            listOf(EstadoTicket.ABIERTO)
+        } else {
+            rol.estadosPermitidos.filter { it != ticket?.estado }
+        }
+
+    /** Coordinador y administrador pueden devolver a Abierto un ticket cerrado. */
+    val puedeReabrir: Boolean get() = reabriendo && rol.puedeReabrirTickets
+
+    /** Se pide motivo al cancelar y tambien al reabrir: ambas son excepcionales. */
+    val exigeMotivo: Boolean get() = formulario.pideMotivo || reabriendo
 
     val puedeEliminar: Boolean get() = rol.puedeEliminarTickets && ticket != null
 
@@ -159,9 +172,15 @@ class DetalleTicketViewModel(
     // ---------- Eventos del formulario ----------
 
     fun seleccionarEstado(nuevo: EstadoTicket) = actualizarFormulario {
-        // Al salir de Cancelado el motivo se descarta: no corresponde a los demas estados
-        val motivo = if (nuevo == EstadoTicket.CANCELADO) it.motivo else ""
-        it.copy(estadoSeleccionado = nuevo, motivo = motivo, errorEstado = null, errorMotivo = null)
+        // Al salir de Cancelado el motivo se descarta, salvo que se este reabriendo:
+        // ahi el motivo es obligatorio igual
+        val conservar = nuevo == EstadoTicket.CANCELADO || estado.value.reabriendo
+        it.copy(
+            estadoSeleccionado = nuevo,
+            motivo = if (conservar) it.motivo else "",
+            errorEstado = null,
+            errorMotivo = null
+        )
     }
 
     fun cambiarMotivo(texto: String) = actualizarFormulario {
@@ -180,9 +199,12 @@ class DetalleTicketViewModel(
             f.estadoSeleccionado == ticket.estado -> "El ticket ya está en ese estado"
             else -> null
         }
-        val errorMotivo = if (f.pideMotivo) {
-            Validaciones.largoMinimo(f.motivo, 10, "El motivo de la cancelacion")
-        } else null
+        val reabriendo = ticket.estado.esFinal
+        val errorMotivo = when {
+            reabriendo -> Validaciones.largoMinimo(f.motivo, 10, "El motivo de la reapertura")
+            f.pideMotivo -> Validaciones.largoMinimo(f.motivo, 10, "El motivo de la cancelacion")
+            else -> null
+        }
 
         if (errorEstado != null || errorMotivo != null) {
             actualizarFormulario { it.copy(errorEstado = errorEstado, errorMotivo = errorMotivo) }
@@ -215,7 +237,11 @@ class DetalleTicketViewModel(
                     // Se guardo: la pantalla se cierra y vuelve al listado
                     local.update {
                         EstadoLocal(
-                            mensaje = "Estado cambiado a ${nuevo.etiqueta}",
+                            mensaje = if (reabriendo) {
+                                "Ticket reabierto"
+                            } else {
+                                "Estado cambiado a ${nuevo.etiqueta}"
+                            },
                             cambioAplicado = true
                         )
                     }

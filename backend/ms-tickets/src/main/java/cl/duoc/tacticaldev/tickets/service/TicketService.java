@@ -103,8 +103,12 @@ public class TicketService {
     public TicketResponse cambiarEstado(String id, CambioEstadoRequest request, String rol, Long usuarioId) {
         Ticket ticket = buscar(id);
         exigirAcceso(ticket, rol, usuarioId);
-        exigirEditable(ticket);
         EstadoTicket nuevo = request.estadoNuevo();
+        boolean reabriendo = ticket.getEstado().esFinal();
+
+        if (reabriendo) {
+            exigirReapertura(ticket, nuevo, rol, request.comentario());
+        }
 
         if (nuevo == ticket.getEstado()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "El ticket ya esta en ese estado");
@@ -128,6 +132,12 @@ public class TicketService {
         } else if (nuevo == EstadoTicket.CANCELADO) {
             ticket.setFechaCierre(LocalDateTime.now());
             ticket.setMotivoCancelacion(comentario);
+        } else if (reabriendo) {
+            // El ticket vuelve a estar vivo: ya no tiene cierre ni solucion.
+            // Lo anterior no se pierde, queda en el historial.
+            ticket.setFechaCierre(null);
+            ticket.setSolucion(null);
+            ticket.setMotivoCancelacion(null);
         }
         return TicketResponse.desde(ticketRepository.save(ticket));
     }
@@ -171,6 +181,26 @@ public class TicketService {
             case FINALIZADO -> "Finalizado";
             case CANCELADO -> "Cancelado";
         };
+    }
+
+    /**
+     * Reabrir es excepcional: devuelve a Abierto un ticket ya finalizado o cancelado.
+     * Solo lo hace el coordinador o el administrador, y siempre con un motivo, para que
+     * el historial explique por que se reabrio y no sirva para tapar un cierre equivocado.
+     */
+    private void exigirReapertura(Ticket ticket, EstadoTicket nuevo, String rol, String comentario) {
+        if (!esGestor(rol)) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "Solo el coordinador o el administrador pueden reabrir un ticket");
+        }
+        if (nuevo != EstadoTicket.ABIERTO) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Un ticket " + etiqueta(ticket.getEstado()).toLowerCase() + " solo se puede reabrir");
+        }
+        if (comentario == null || comentario.trim().isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Debes indicar el motivo para reabrir el ticket");
+        }
     }
 
     /**

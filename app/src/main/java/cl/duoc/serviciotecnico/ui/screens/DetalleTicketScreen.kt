@@ -86,6 +86,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Shield
@@ -319,20 +320,23 @@ private fun ContenidoDetalle(
             }
         }
 
-        // ---------- Cambio de estado (solo si se puede editar) ----------
-        if (estado.editable) {
+        // ---------- Cambio de estado, o reapertura si el ticket ya esta cerrado ----------
+        if (estado.editable || estado.puedeReabrir) {
             item {
                 FormularioDeCambio(
                     actual = ticket.estado,
                     opciones = estado.estadosDisponibles,
                     formulario = estado.formulario,
                     tieneGuias = estado.guias.isNotEmpty(),
+                    reabriendo = estado.reabriendo,
+                    exigeMotivo = estado.exigeMotivo,
                     onSeleccionarEstado = vm::seleccionarEstado,
                     onMotivoCambia = vm::cambiarMotivo,
                     onEnviar = vm::enviarCambioDeEstado
                 )
             }
-        } else {
+        }
+        if (!estado.editable) {
             item {
                 Card(
                 modifier = Modifier
@@ -396,6 +400,8 @@ private fun FormularioDeCambio(
     opciones: List<EstadoTicket>,
     formulario: FormularioCambioEstado,
     tieneGuias: Boolean,
+    reabriendo: Boolean,
+    exigeMotivo: Boolean,
     onSeleccionarEstado: (EstadoTicket) -> Unit,
     onMotivoCambia: (String) -> Unit,
     onEnviar: () -> Unit
@@ -407,7 +413,10 @@ private fun FormularioDeCambio(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TituloDeSeccion(Icons.Filled.SwapHoriz, "Cambiar estado")
+            TituloDeSeccion(
+                if (reabriendo) Icons.Filled.LockOpen else Icons.Filled.SwapHoriz,
+                if (reabriendo) "Reabrir ticket" else "Cambiar estado"
+            )
             Text(
                 "Estado actual: ${actual.etiqueta}",
                 style = MaterialTheme.typography.bodyMedium,
@@ -428,12 +437,12 @@ private fun FormularioDeCambio(
                 )
             }
 
-            // Solo al cancelar: por que se cancela. Desaparece si se elige otro estado.
-            AnimatedVisibility(visible = formulario.pideMotivo) {
+            // Al cancelar y al reabrir hay que explicar por que
+            AnimatedVisibility(visible = exigeMotivo) {
                 CampoTextoValidado(
                     valor = formulario.motivo,
                     onValorCambia = onMotivoCambia,
-                    etiqueta = "Motivo de la cancelación",
+                    etiqueta = if (reabriendo) "Motivo de la reapertura" else "Motivo de la cancelación",
                     obligatorio = true,
                     lineasMinimas = 3,
                     lineasMaximas = 6,
@@ -443,13 +452,18 @@ private fun FormularioDeCambio(
             }
 
             // El detalle del trabajo va en la guia, no aqui
-            if (!tieneGuias) {
+            if (reabriendo) {
+                CajaDeAviso(
+                    "Al reabrirlo volverá a Abierto y se borrará su fecha de cierre. " +
+                        "El motivo queda en el historial."
+                )
+            } else if (!tieneGuias) {
                 CajaDeAviso("Para finalizar el ticket primero debes crear una guía de servicio.")
             }
 
             BotonGuardar(
                 onClick = onEnviar,
-                texto = "Enviar cambio de estado",
+                texto = if (reabriendo) "Reabrir ticket" else "Enviar cambio de estado",
                 guardando = formulario.enviando
             )
         }
