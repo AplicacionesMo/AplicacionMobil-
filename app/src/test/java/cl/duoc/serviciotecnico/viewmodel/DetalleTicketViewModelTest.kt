@@ -44,7 +44,7 @@ class DetalleTicketViewModelTest {
     private val equipos: EquipoRepository = mockk()
     private val sesion: SesionRepository = mockk()
 
-    private val ticket = MutableStateFlow<Ticket?>(Datos.ticket(EstadoTicket.TRABAJO_EN_PROCESO))
+    private val ticket = MutableStateFlow<Ticket?>(Datos.ticket(EstadoTicket.TRANSITO))
 
     private fun TestScope.crearVm(rol: Rol = Rol.TECNICO): DetalleTicketViewModel {
         every { sesion.rolActual() } returns rol
@@ -60,8 +60,6 @@ class DetalleTicketViewModelTest {
 
     private fun DetalleTicketViewModel.llenarCambio(estado: EstadoTicket) {
         seleccionarEstado(estado)
-        cambiarComentario("Trabajo terminado sin problemas")
-        ubicacionObtenida(-33.42, -70.61)
     }
 
     @Test
@@ -77,46 +75,62 @@ class DetalleTicketViewModelTest {
     }
 
     @Test
-    fun `sin estado, comentario ni ubicacion muestra los tres errores`() = runTest {
+    fun `sin elegir estado no se envia nada`() = runTest {
         val vm = crearVm()
 
         vm.enviarCambioDeEstado()
 
-        val f = vm.estado.value.formulario
-        assertNotNull(f.errorEstado)
-        assertNotNull(f.errorComentario)
-        assertNotNull(f.errorUbicacion)
+        assertNotNull(vm.estado.value.formulario.errorEstado)
         coVerify(exactly = 0) { tickets.registrarCambioDeEstado(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun `no se puede cerrar sin guias emitidas`() = runTest {
+    fun `no se puede finalizar sin guias emitidas`() = runTest {
         coEvery { tickets.tieneGuiasEmitidas("t-1") } returns false
         val vm = crearVm()
-        vm.llenarCambio(EstadoTicket.CERRADO)
+        vm.llenarCambio(EstadoTicket.FINALIZADO)
 
         vm.enviarCambioDeEstado()
 
-        assertEquals("Para cerrar el ticket debes emitir al menos una guía", vm.estado.value.formulario.errorEstado)
+        assertEquals("Debes crear una guía", vm.estado.value.formulario.errorEstado)
+        assertEquals("Debes crear una guía", vm.estado.value.mensaje)
         coVerify(exactly = 0) { tickets.registrarCambioDeEstado(any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `cancelar no exige guia`() = runTest {
+        coEvery { tickets.tieneGuiasEmitidas("t-1") } returns false
+        val vm = crearVm(Rol.COORDINADOR)
+        vm.llenarCambio(EstadoTicket.CANCELADO)
+
+        vm.enviarCambioDeEstado()
+
+        coVerify {
+            tickets.registrarCambioDeEstado(
+                ticketId = "t-1",
+                nuevoEstado = EstadoTicket.CANCELADO,
+                rol = Rol.COORDINADOR
+            )
+        }
     }
 
     @Test
     fun `cambio valido se envia con el rol y limpia el formulario`() = runTest {
         coEvery { tickets.tieneGuiasEmitidas("t-1") } returns true
         val vm = crearVm()
-        vm.llenarCambio(EstadoTicket.CERRADO)
+        vm.llenarCambio(EstadoTicket.FINALIZADO)
 
         vm.enviarCambioDeEstado()
 
         coVerify {
             tickets.registrarCambioDeEstado(
-                "t-1", EstadoTicket.CERRADO, "Trabajo terminado sin problemas",
-                emptyList(), -33.42, -70.61, Rol.TECNICO
+                ticketId = "t-1",
+                nuevoEstado = EstadoTicket.FINALIZADO,
+                rol = Rol.TECNICO
             )
         }
         assertNull(vm.estado.value.formulario.estadoSeleccionado)
-        assertEquals("Estado cambiado a Cerrado", vm.estado.value.mensaje)
+        assertEquals("Estado cambiado a Finalizado", vm.estado.value.mensaje)
     }
 
     @Test
@@ -125,7 +139,8 @@ class DetalleTicketViewModelTest {
             tickets.registrarCambioDeEstado(any(), any(), any(), any(), any(), any(), any())
         } throws Datos.errorHttp(403, "Solo el coordinador puede cancelar un ticket")
         val vm = crearVm()
-        vm.llenarCambio(EstadoTicket.TRANSITO)
+        // El tecnico no deberia poder cancelar: quien lo rechaza es el servidor
+        vm.llenarCambio(EstadoTicket.CANCELADO)
 
         vm.enviarCambioDeEstado()
 
@@ -139,7 +154,7 @@ class DetalleTicketViewModelTest {
 
         val estado = vm.estado.value
         assertFalse(EstadoTicket.CANCELADO in estado.estadosDisponibles)
-        assertFalse(EstadoTicket.TRABAJO_EN_PROCESO in estado.estadosDisponibles) // el actual no aparece
+        assertFalse(EstadoTicket.TRANSITO in estado.estadosDisponibles) // el actual no aparece
         assertFalse(estado.puedeEliminar)
     }
 
@@ -178,20 +193,10 @@ class DetalleTicketViewModelTest {
     }
 
     @Test
-    fun `ticket cerrado es de solo lectura`() = runTest {
-        ticket.value = Datos.ticket(EstadoTicket.CERRADO)
+    fun `ticket finalizado es de solo lectura`() = runTest {
+        ticket.value = Datos.ticket(EstadoTicket.FINALIZADO)
         val vm = crearVm()
 
         assertFalse(vm.estado.value.editable)
-    }
-
-    @Test
-    fun `maximo cinco fotos por cambio`() = runTest {
-        val vm = crearVm()
-
-        repeat(6) { vm.agregarFoto("content://foto/$it") }
-
-        assertEquals(5, vm.estado.value.formulario.fotos.size)
-        assertFalse(vm.estado.value.formulario.puedeAgregarFotos)
     }
 }

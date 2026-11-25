@@ -41,6 +41,10 @@ import cl.duoc.serviciotecnico.ui.components.GaleriaDeFotos
 import cl.duoc.serviciotecnico.ui.viewmodel.FormularioGuiaViewModel
 import cl.duoc.serviciotecnico.util.ArchivosDeFoto
 
+/** Alto de los campos donde se espera un parrafo, no una linea. */
+private const val LINEAS_DE_PARRAFO = 5
+private const val LINEAS_MAXIMAS_DE_PARRAFO = 8
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormularioGuiaScreen(
@@ -53,10 +57,6 @@ fun FormularioGuiaScreen(
     val estado by vm.estado.collectAsStateWithLifecycle()
     val mensaje by vm.mensaje.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-
-    LaunchedEffect(ticket?.direccion) {
-        vm.heredarDireccion(ticket?.direccion.orEmpty())
-    }
 
     LaunchedEffect(estado.guardado) {
         if (estado.guardado) onVolver()
@@ -107,42 +107,36 @@ fun FormularioGuiaScreen(
                 style = MaterialTheme.typography.titleMedium
             )
 
-            CampoTextoValidado(
-                valor = estado.direccion,
-                onValorCambia = vm::cambiarDireccion,
-                etiqueta = "Direccion del servicio",
-                obligatorio = true,
-                error = estado.errorVisible(estado.errorDireccion)
-            )
+            // La direccion y el tecnico no se escriben: los trae el ticket y la sesion activa
+            DatoHeredado("Direccion del servicio", actual.direccion)
+            DatoHeredado("Tecnico", vm.tecnico)
 
-            CampoTextoValidado(
-                valor = estado.tecnico,
-                onValorCambia = vm::cambiarTecnico,
-                etiqueta = "Nombre del tecnico",
-                obligatorio = true,
-                error = estado.errorVisible(estado.errorTecnico)
-            )
+            HorizontalDivider()
 
             CampoTextoValidado(
                 valor = estado.trabajoRealizado,
                 onValorCambia = vm::cambiarTrabajo,
                 etiqueta = "Trabajo realizado",
                 obligatorio = true,
-                lineasMaximas = 4,
+                lineasMinimas = LINEAS_DE_PARRAFO,
+                lineasMaximas = LINEAS_MAXIMAS_DE_PARRAFO,
                 error = estado.errorVisible(estado.errorTrabajo)
             )
 
             CampoTextoValidado(
                 valor = estado.repuestos,
                 onValorCambia = vm::cambiarRepuestos,
-                etiqueta = "Repuestos utilizados"
+                etiqueta = "Repuestos utilizados",
+                lineasMinimas = LINEAS_DE_PARRAFO,
+                lineasMaximas = LINEAS_MAXIMAS_DE_PARRAFO
             )
 
             CampoTextoValidado(
                 valor = estado.observaciones,
                 onValorCambia = vm::cambiarObservaciones,
                 etiqueta = "Observaciones",
-                lineasMaximas = 3
+                lineasMinimas = LINEAS_DE_PARRAFO,
+                lineasMaximas = LINEAS_MAXIMAS_DE_PARRAFO
             )
 
             CampoTextoValidado(
@@ -194,5 +188,21 @@ fun FormularioGuiaScreen(
                 guardando = estado.guardando
             )
         }
+    }
+}
+
+/** Dato que la guia toma del ticket o de la sesion: se muestra, no se escribe. */
+@Composable
+private fun DatoHeredado(etiqueta: String, valor: String) {
+    Column {
+        Text(
+            text = etiqueta,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = valor.ifBlank { "Sin dato" },
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
 }

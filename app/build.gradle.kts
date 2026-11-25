@@ -25,11 +25,13 @@ android {
         versionCode = 2
         versionName = "2.0"
 
-        // Direcciones de los microservicios. 10.0.2.2 es "localhost del PC" visto desde el emulador.
-        // En un telefono fisico, reemplazar por la IP del PC en la misma red (ej. 192.168.1.10).
-        buildConfigField("String", "URL_USUARIOS", "\"http://10.0.2.2:8081/\"")
-        buildConfigField("String", "URL_TICKETS", "\"http://10.0.2.2:8082/\"")
-        buildConfigField("String", "URL_GUIAS", "\"http://10.0.2.2:8083/\"")
+        // Direcciones de los microservicios publicados en Railway. Asi la app funciona en un
+        // telefono fisico con datos o WiFi, sin depender del PC.
+        // Para probar contra los microservicios locales en el emulador, cambiar por
+        // http://10.0.2.2:8081/, :8082 y :8083 (10.0.2.2 es "localhost del PC" visto por el emulador).
+        buildConfigField("String", "URL_USUARIOS", "\"https://aplicacionmobil-production.up.railway.app/\"")
+        buildConfigField("String", "URL_TICKETS", "\"https://beneficial-contentment-production.up.railway.app/\"")
+        buildConfigField("String", "URL_GUIAS", "\"https://determined-empathy-production-177878af.up.railway.app/\"")
         // API externa (Open-Meteo, sin llave)
         buildConfigField("String", "URL_CLIMA", "\"https://api.open-meteo.com/\"")
     }

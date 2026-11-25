@@ -3,10 +3,14 @@ package cl.duoc.serviciotecnico.viewmodel
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 import cl.duoc.serviciotecnico.data.repository.EquipoRepository
 import cl.duoc.serviciotecnico.data.repository.GuiaRepository
+import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
+import cl.duoc.serviciotecnico.domain.model.Rol
+import cl.duoc.serviciotecnico.domain.model.UsuarioSesion
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleGuiaViewModel
 import cl.duoc.serviciotecnico.ui.viewmodel.FormularioGuiaViewModel
 import cl.duoc.serviciotecnico.util.Datos
+import androidx.lifecycle.SavedStateHandle
 import cl.duoc.serviciotecnico.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -34,17 +38,20 @@ class FormularioGuiaViewModelTest {
 
     private val tickets: TicketRepository = mockk()
     private val guias: GuiaRepository = mockk()
+    private val sesion: SesionRepository = mockk()
 
-    private fun TestScope.crearVm(): FormularioGuiaViewModel {
+    private fun TestScope.crearVm(
+        respaldo: SavedStateHandle = SavedStateHandle()
+    ): FormularioGuiaViewModel {
         every { tickets.observarTicket("t-1") } returns MutableStateFlow<Ticket?>(Datos.ticket())
-        val vm = FormularioGuiaViewModel("t-1", tickets, guias)
+        every { sesion.usuarioActual() } returns
+            UsuarioSesion(1L, "Juan Perez", "juan@tacticaldev.cl", Rol.TECNICO)
+        val vm = FormularioGuiaViewModel("t-1", respaldo, tickets, guias, sesion)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.ticket.collect {} }
         return vm
     }
 
     private fun FormularioGuiaViewModel.llenar() {
-        heredarDireccion("Av. Providencia 1234")
-        cambiarTecnico("Juan Perez")
         cambiarTrabajo("Cambio de capacitor y limpieza de filtros")
         cambiarRecibidoPor("Maria Soto")
         registrarUbicacion(-33.42, -70.61)
@@ -52,14 +59,24 @@ class FormularioGuiaViewModelTest {
     }
 
     @Test
-    fun `la direccion se hereda del ticket una sola vez`() = runTest {
+    fun `el tecnico sale de la sesion activa`() = runTest {
         val vm = crearVm()
 
-        vm.heredarDireccion("Av. Providencia 1234")
-        vm.cambiarDireccion("Otra direccion 99")
-        vm.heredarDireccion("Av. Providencia 1234")
+        assertEquals("Juan Perez", vm.tecnico)
+    }
 
-        assertEquals("Otra direccion 99", vm.estado.value.direccion)
+    @Test
+    fun `lo escrito sobrevive a que Android mate el proceso`() = runTest {
+        val respaldo = SavedStateHandle()
+        crearVm(respaldo).llenar()
+
+        // Mismo respaldo, ViewModel nuevo: es lo que pasa al volver de la camara
+        val revivido = crearVm(respaldo)
+
+        assertEquals("Cambio de capacitor y limpieza de filtros", revivido.estado.value.trabajoRealizado)
+        assertEquals("Maria Soto", revivido.estado.value.recibidoPor)
+        assertEquals(-33.42, revivido.estado.value.latitud!!, 0.0001)
+        assertEquals(listOf("content://foto/1"), revivido.estado.value.fotos)
     }
 
     @Test

@@ -30,15 +30,18 @@ Asignatura **DSY1105 — Desarrollo de Aplicaciones Móviles** · Evaluaciones P
   y administrador: **el técnico no crea tickets**, trabaja en los que le asignan.
 - Registro del **equipo de climatización** (nombre, modelo, serie, propio o arrendado). Si la serie ya
   existe, el servidor reutiliza el equipo.
-- **Nueve estados** de ticket. Cada cambio exige comentario y ubicación GPS, admite hasta 5 fotos y
-  queda en el **historial** del servidor.
-- **Guías de servicio** contra `ms-guias`, con fotografías de la cámara y coordenadas.
+- **Cuatro estados** de ticket: Abierto, En tránsito, Finalizado y Cancelado. El ticket nace Abierto
+  y cada cambio queda en el **historial** del servidor.
+- **Guías de servicio** contra `ms-guias`, con fotografías de la cámara y coordenadas. La guía es el
+  único lugar donde se documenta la visita: el cambio de estado no vuelve a pedir foto, ubicación ni
+  comentario.
 - **Reglas de negocio validadas en la app y otra vez en el servidor**:
-  - no se puede cerrar un ticket sin al menos una guía (ms-tickets le pregunta a ms-guias);
+  - no se puede finalizar un ticket sin al menos una guía (ms-tickets le pregunta a ms-guias);
+    Abierto, En tránsito y Cancelado se alcanzan sin guía;
   - el técnico no puede crear, cancelar ni eliminar tickets (coordinador y administrador sí);
   - solo el administrador crea, edita o elimina usuarios;
   - un ticket con guías no se puede eliminar;
-  - un ticket cerrado o cancelado es de solo lectura.
+  - un ticket finalizado o cancelado es de solo lectura.
 - **Clima actual en Santiago** (API externa Open-Meteo) con una recomendación para la operación.
 - **Caché local con Room**: si el servidor no responde, la app sigue mostrando los últimos datos y avisa.
 - Cámara, GPS, permisos en tiempo de uso y animaciones (de la evaluación anterior).

@@ -1,8 +1,10 @@
 package cl.duoc.serviciotecnico.ui.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -57,8 +59,16 @@ data class FormularioTicketUiState(
     val formularioValido: Boolean get() = errores.isEmpty()
 }
 
+/**
+ * Formulario de ticket (crear o editar).
+ *
+ * Lo escrito se replica en el SavedStateHandle: si Android mata el proceso mientras el
+ * formulario esta abierto, al volver el texto sigue ahi. Es la misma proteccion que usa
+ * el formulario de guias.
+ */
 class FormularioTicketViewModel(
     private val ticketId: String?,
+    private val estadoGuardado: SavedStateHandle,
     private val ticketRepository: TicketRepository,
     private val equipoRepository: EquipoRepository,
     private val rol: Rol
@@ -69,10 +79,13 @@ class FormularioTicketViewModel(
         if (ticketId == null && !rol.puedeCrearTickets) {
             FormularioTicketUiState(soloLectura = true, mensaje = MENSAJE_SIN_PERMISO)
         } else {
-            FormularioTicketUiState(esEdicion = ticketId != null)
+            conBorrador(FormularioTicketUiState(esEdicion = ticketId != null))
         }
     )
     val estado: StateFlow<FormularioTicketUiState> = _estado.asStateFlow()
+
+    /** Hay texto respaldado de una sesion anterior que Android interrumpio. */
+    private val hayBorrador: Boolean get() = estadoGuardado.contains(CLAVE_TITULO)
 
     init {
         if (ticketId != null) cargarTicket(ticketId) else recalcularErrores()
@@ -87,8 +100,10 @@ class FormularioTicketViewModel(
                 _estado.update { it.copy(cargando = false, mensaje = "No se encontro el ticket") }
                 return@launch
             }
+            // Si hay un borrador respaldado, manda el borrador: es lo ultimo que escribio
+            val conservarBorrador = hayBorrador
             _estado.update {
-                it.copy(
+                val base = if (conservarBorrador) it else it.copy(
                     titulo = ticket.titulo,
                     descripcion = ticket.descripcion,
                     cliente = ticket.cliente,
@@ -97,10 +112,12 @@ class FormularioTicketViewModel(
                     nombreEquipo = equipo.nombre,
                     modelo = equipo.modelo,
                     serie = equipo.serie,
-                    propiedad = equipo.propiedad,
+                    propiedad = equipo.propiedad
+                )
+                base.copy(
                     numero = ticket.numero,
                     cargando = false,
-                    // Regla: un ticket cerrado o cancelado no se puede editar
+                    // Regla: un ticket finalizado o cancelado no se puede editar
                     soloLectura = !ticket.editable,
                     mensaje = if (!ticket.editable) {
                         "Este ticket esta ${ticket.estado.etiqueta.lowercase()} y no se puede editar"
@@ -127,13 +144,66 @@ class FormularioTicketViewModel(
             }
         }
         recalcularErrores()
+        respaldar()
     }
 
-    fun cambiarPrioridad(prioridad: Prioridad) = _estado.update { it.copy(prioridad = prioridad) }
+    fun cambiarPrioridad(prioridad: Prioridad) {
+        _estado.update { it.copy(prioridad = prioridad) }
+        respaldar()
+    }
 
-    fun cambiarPropiedad(propiedad: Propiedad) = _estado.update { it.copy(propiedad = propiedad) }
+    fun cambiarPropiedad(propiedad: Propiedad) {
+        _estado.update { it.copy(propiedad = propiedad) }
+        respaldar()
+    }
 
     fun mensajeMostrado() = _estado.update { it.copy(mensaje = null) }
+
+    // ---------- Borrador que sobrevive a que Android mate el proceso ----------
+
+    private fun respaldar() {
+        val s = _estado.value
+        estadoGuardado[CLAVE_TITULO] = s.titulo
+        estadoGuardado[CLAVE_DESCRIPCION] = s.descripcion
+        estadoGuardado[CLAVE_CLIENTE] = s.cliente
+        estadoGuardado[CLAVE_DIRECCION] = s.direccion
+        estadoGuardado[CLAVE_PRIORIDAD] = s.prioridad.name
+        estadoGuardado[CLAVE_NOMBRE_EQUIPO] = s.nombreEquipo
+        estadoGuardado[CLAVE_MODELO] = s.modelo
+        estadoGuardado[CLAVE_SERIE] = s.serie
+        estadoGuardado[CLAVE_PROPIEDAD] = s.propiedad.name
+        estadoGuardado[CLAVE_TOCADOS] = ArrayList(s.camposTocados.map { it.name })
+    }
+
+    private fun conBorrador(base: FormularioTicketUiState): FormularioTicketUiState {
+        if (!estadoGuardado.contains(CLAVE_TITULO)) return base
+        return base.copy(
+            titulo = estadoGuardado[CLAVE_TITULO] ?: base.titulo,
+            descripcion = estadoGuardado[CLAVE_DESCRIPCION] ?: base.descripcion,
+            cliente = estadoGuardado[CLAVE_CLIENTE] ?: base.cliente,
+            direccion = estadoGuardado[CLAVE_DIRECCION] ?: base.direccion,
+            prioridad = estadoGuardado.get<String>(CLAVE_PRIORIDAD)
+                ?.let { nombre -> Prioridad.entries.firstOrNull { it.name == nombre } }
+                ?: base.prioridad,
+            nombreEquipo = estadoGuardado[CLAVE_NOMBRE_EQUIPO] ?: base.nombreEquipo,
+            modelo = estadoGuardado[CLAVE_MODELO] ?: base.modelo,
+            serie = estadoGuardado[CLAVE_SERIE] ?: base.serie,
+            propiedad = estadoGuardado.get<String>(CLAVE_PROPIEDAD)
+                ?.let { nombre -> Propiedad.entries.firstOrNull { it.name == nombre } }
+                ?: base.propiedad,
+            camposTocados = estadoGuardado.get<ArrayList<String>>(CLAVE_TOCADOS)
+                ?.mapNotNull { nombre -> CampoTicket.entries.firstOrNull { it.name == nombre } }
+                ?.toSet()
+                ?: base.camposTocados
+        )
+    }
+
+    private fun limpiarBorrador() {
+        listOf(
+            CLAVE_TITULO, CLAVE_DESCRIPCION, CLAVE_CLIENTE, CLAVE_DIRECCION, CLAVE_PRIORIDAD,
+            CLAVE_NOMBRE_EQUIPO, CLAVE_MODELO, CLAVE_SERIE, CLAVE_PROPIEDAD, CLAVE_TOCADOS
+        ).forEach { estadoGuardado.remove<Any>(it) }
+    }
 
     // ---------- Validacion: toda aqui, nada en el composable ----------
 
@@ -170,7 +240,10 @@ class FormularioTicketViewModel(
                 if (ticketId != null) ticketRepository.actualizar(ticketId, datos)
                 else ticketRepository.crear(datos, rol)
             }
-                .onSuccess { _estado.update { it.copy(guardando = false, guardado = true) } }
+                .onSuccess {
+                    limpiarBorrador()
+                    _estado.update { it.copy(guardando = false, guardado = true) }
+                }
                 .onFailure { error ->
                     _estado.update { it.copy(guardando = false, mensaje = ErrorDeRed.mensaje(error)) }
                 }
@@ -192,11 +265,23 @@ class FormularioTicketViewModel(
     companion object {
         const val MENSAJE_SIN_PERMISO = "Solo el coordinador o el administrador pueden crear tickets"
 
+        private const val CLAVE_TITULO = "ticket.titulo"
+        private const val CLAVE_DESCRIPCION = "ticket.descripcion"
+        private const val CLAVE_CLIENTE = "ticket.cliente"
+        private const val CLAVE_DIRECCION = "ticket.direccion"
+        private const val CLAVE_PRIORIDAD = "ticket.prioridad"
+        private const val CLAVE_NOMBRE_EQUIPO = "ticket.nombreEquipo"
+        private const val CLAVE_MODELO = "ticket.modelo"
+        private const val CLAVE_SERIE = "ticket.serie"
+        private const val CLAVE_PROPIEDAD = "ticket.propiedad"
+        private const val CLAVE_TOCADOS = "ticket.camposTocados"
+
         fun factory(ticketId: String?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ServicioTecnicoApp
                 FormularioTicketViewModel(
                     ticketId,
+                    createSavedStateHandle(),
                     app.ticketRepository,
                     app.equipoRepository,
                     app.sesionRepository.rolActual()

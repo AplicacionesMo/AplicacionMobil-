@@ -60,17 +60,12 @@ import cl.duoc.serviciotecnico.data.local.entity.CambioEstado
 import cl.duoc.serviciotecnico.data.local.entity.Guia
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
-import cl.duoc.serviciotecnico.ui.components.BotonDeFoto
-import cl.duoc.serviciotecnico.ui.components.BotonDeUbicacion
 import cl.duoc.serviciotecnico.ui.components.BotonGuardar
-import cl.duoc.serviciotecnico.ui.components.CampoTextoValidado
 import cl.duoc.serviciotecnico.ui.components.EtiquetaEstado
 import cl.duoc.serviciotecnico.ui.components.GaleriaDeFotos
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketUiState
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketViewModel
 import cl.duoc.serviciotecnico.ui.viewmodel.FormularioCambioEstado
-import cl.duoc.serviciotecnico.ui.viewmodel.MAX_FOTOS_CAMBIO
-import cl.duoc.serviciotecnico.util.ArchivosDeFoto
 import cl.duoc.serviciotecnico.util.Mapas
 import java.time.format.DateTimeFormatter
 
@@ -253,17 +248,8 @@ private fun ContenidoDetalle(
                     actual = ticket.estado,
                     opciones = estado.estadosDisponibles,
                     formulario = estado.formulario,
+                    tieneGuias = estado.guias.isNotEmpty(),
                     onSeleccionarEstado = vm::seleccionarEstado,
-                    onComentarioCambia = vm::cambiarComentario,
-                    onFotoTomada = { uri -> vm.agregarFoto(uri.toString()) },
-                    onQuitarFoto = { uri ->
-                        vm.quitarFoto(uri.toString())
-                        ArchivosDeFoto.eliminar(context, uri)
-                    },
-                    onUbicacionObtenida = vm::ubicacionObtenida,
-                    onVerEnMapa = { lat, lon ->
-                        Mapas.abrirCoordenadas(context, lat, lon, "Ubicación del cambio de estado")
-                    },
                     onEnviar = vm::enviarCambioDeEstado
                 )
             }
@@ -316,16 +302,10 @@ private fun FormularioDeCambio(
     actual: EstadoTicket,
     opciones: List<EstadoTicket>,
     formulario: FormularioCambioEstado,
+    tieneGuias: Boolean,
     onSeleccionarEstado: (EstadoTicket) -> Unit,
-    onComentarioCambia: (String) -> Unit,
-    onFotoTomada: (Uri) -> Unit,
-    onQuitarFoto: (Uri) -> Unit,
-    onUbicacionObtenida: (Double, Double) -> Unit,
-    onVerEnMapa: (Double, Double) -> Unit,
     onEnviar: () -> Unit
 ) {
-    val fotos = remember(formulario.fotos) { formulario.fotos.map(Uri::parse) }
-
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Cambiar estado", style = MaterialTheme.typography.titleMedium)
@@ -335,7 +315,6 @@ private fun FormularioDeCambio(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // 1. Nuevo estado
             SelectorDeEstado(
                 seleccionado = formulario.estadoSeleccionado,
                 opciones = opciones,
@@ -350,60 +329,15 @@ private fun FormularioDeCambio(
                 )
             }
 
-            // 2. Comentario
-            CampoTextoValidado(
-                valor = formulario.comentario,
-                onValorCambia = onComentarioCambia,
-                etiqueta = "Comentario",
-                obligatorio = true,
-                lineasMaximas = 4,
-                error = formulario.errorComentario,
-                habilitado = !formulario.enviando
-            )
-
-            // 3. Fotos (hasta 5)
-            Text(
-                "Fotos (${formulario.fotos.size} de $MAX_FOTOS_CAMBIO)",
-                style = MaterialTheme.typography.labelLarge
-            )
-            if (formulario.puedeAgregarFotos && !formulario.enviando) {
-                BotonDeFoto(onFotoTomada = onFotoTomada, etiqueta = "Agregar foto")
-            }
-            if (fotos.isNotEmpty()) {
-                GaleriaDeFotos(fotos = fotos, onQuitarFoto = onQuitarFoto)
-            }
-
-            // 4. Ubicacion (obligatoria)
-            Text("Ubicación *", style = MaterialTheme.typography.labelLarge)
-            if (!formulario.enviando) {
-                BotonDeUbicacion(
-                    onUbicacionObtenida = onUbicacionObtenida,
-                    etiqueta = if (formulario.tieneUbicacion) "Actualizar ubicación" else "Registrar mi ubicación"
-                )
-            }
-            val lat = formulario.latitud
-            val lon = formulario.longitud
-            if (lat != null && lon != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Lat: %.5f · Lon: %.5f".format(lat, lon),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = { onVerEnMapa(lat, lon) }) {
-                        Icon(Icons.Filled.Map, contentDescription = "Ver en el mapa")
-                    }
-                }
-            }
-            AnimatedVisibility(visible = formulario.errorUbicacion != null) {
+            // El detalle del trabajo va en la guia, no aqui
+            if (!tieneGuias) {
                 Text(
-                    formulario.errorUbicacion.orEmpty(),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    "Para finalizar el ticket primero debes crear una guía de servicio.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            // 5. Enviar
             BotonGuardar(
                 onClick = onEnviar,
                 texto = "Enviar cambio de estado",

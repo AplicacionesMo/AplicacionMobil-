@@ -14,24 +14,32 @@ class ReglasDeDominioTest {
     // ---------- Estados ----------
 
     @Test
-    fun `solo cerrado y cancelado son finales`() {
+    fun `solo finalizado y cancelado son finales`() {
         val finales = EstadoTicket.entries.filter { it.esFinal }
-        assertEquals(listOf(EstadoTicket.CERRADO, EstadoTicket.CANCELADO), finales)
-        assertEquals(7, EstadoTicket.intermedios.size)
+        assertEquals(listOf(EstadoTicket.FINALIZADO, EstadoTicket.CANCELADO), finales)
+        assertEquals(listOf(EstadoTicket.ABIERTO, EstadoTicket.TRANSITO), EstadoTicket.intermedios)
+    }
+
+    @Test
+    fun `solo finalizado exige una guia`() {
+        assertTrue(EstadoTicket.FINALIZADO.exigeGuia)
+        assertFalse(EstadoTicket.ABIERTO.exigeGuia)
+        assertFalse(EstadoTicket.TRANSITO.exigeGuia)
+        assertFalse(EstadoTicket.CANCELADO.exigeGuia)
     }
 
     @Test
     fun `un ticket final no es editable`() {
         assertTrue(Datos.ticket(EstadoTicket.TRANSITO).editable)
-        assertFalse(Datos.ticket(EstadoTicket.CERRADO).editable)
+        assertFalse(Datos.ticket(EstadoTicket.FINALIZADO).editable)
         assertFalse(Datos.ticket(EstadoTicket.CANCELADO).editable)
     }
 
     // ---------- Roles ----------
 
     @Test
-    fun `el tecnico puede cerrar pero no crear, cancelar ni eliminar`() {
-        assertTrue(EstadoTicket.CERRADO in Rol.TECNICO.estadosPermitidos)
+    fun `el tecnico puede finalizar pero no crear, cancelar ni eliminar`() {
+        assertTrue(EstadoTicket.FINALIZADO in Rol.TECNICO.estadosPermitidos)
         assertFalse(EstadoTicket.CANCELADO in Rol.TECNICO.estadosPermitidos)
         assertFalse(Rol.TECNICO.puedeCrearTickets)
         assertFalse(Rol.TECNICO.puedeEliminarTickets)

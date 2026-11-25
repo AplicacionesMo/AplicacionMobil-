@@ -33,6 +33,8 @@ fun CampoTextoValidado(
     error: String? = null,
     obligatorio: Boolean = false,
     lineasMaximas: Int = 1,
+    // Alto minimo del cuadro. Subelo en los campos donde se espera un parrafo.
+    lineasMinimas: Int = 1,
     tipoDeTeclado: KeyboardType = KeyboardType.Text,
     accionDelTeclado: ImeAction = ImeAction.Next,
     habilitado: Boolean = true,
@@ -55,6 +57,7 @@ fun CampoTextoValidado(
         isError = tieneError,
         singleLine = lineasMaximas == 1,
         maxLines = lineasMaximas,
+        minLines = lineasMinimas.coerceAtMost(lineasMaximas),
         keyboardOptions = KeyboardOptions(
             keyboardType = tipoDeTeclado,
             imeAction = accionDelTeclado

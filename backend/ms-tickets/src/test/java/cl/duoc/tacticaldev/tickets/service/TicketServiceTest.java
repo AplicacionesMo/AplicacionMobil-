@@ -120,8 +120,8 @@ class TicketServiceTest {
     }
 
     @Test
-    void actualizarTicketCerradoLanza409() {
-        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.CERRADO)));
+    void actualizarTicketFinalizadoLanza409() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.FINALIZADO)));
 
         ApiException e = assertThrows(ApiException.class, () -> service.actualizar("t-1", request()));
 
@@ -166,26 +166,26 @@ class TicketServiceTest {
     }
 
     @Test
-    void cerrarSinGuiasLanza409() {
-        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.TRABAJO_EN_PROCESO)));
+    void finalizarSinGuiasLanza409() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.TRANSITO)));
         when(guiasClient.contarGuiasDeTicket("t-1")).thenReturn(0L);
 
         ApiException e = assertThrows(ApiException.class,
-                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.CERRADO), "TECNICO"));
+                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.FINALIZADO), "TECNICO"));
 
         assertEquals(HttpStatus.CONFLICT, e.getEstado());
     }
 
     @Test
-    void cerrarConGuiaGuardaSolucionYFecha() {
-        Ticket t = ticket(EstadoTicket.TRABAJO_EN_PROCESO);
+    void finalizarConGuiaGuardaSolucionYFecha() {
+        Ticket t = ticket(EstadoTicket.TRANSITO);
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(t));
         when(guiasClient.contarGuiasDeTicket("t-1")).thenReturn(1L);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CERRADO), "TECNICO");
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.FINALIZADO), "TECNICO");
 
-        assertEquals(EstadoTicket.CERRADO, r.estado());
+        assertEquals(EstadoTicket.FINALIZADO, r.estado());
         assertEquals("Comentario de prueba", r.solucion());
         assertNotNull(r.fechaCierre());
     }
@@ -269,5 +269,42 @@ class TicketServiceTest {
         ));
 
         assertEquals(1, service.historial("t-1").size());
+    }
+
+    @Test
+    void cancelarNoExigeGuia() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "COORDINADOR");
+
+        assertEquals(EstadoTicket.CANCELADO, r.estado());
+        verify(guiasClient, never()).contarGuiasDeTicket(any());
+    }
+
+    @Test
+    void transitoNoExigeGuia() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.cambiarEstado("t-1", cambio(EstadoTicket.TRANSITO), "TECNICO");
+
+        verify(guiasClient, never()).contarGuiasDeTicket(any());
+    }
+
+    @Test
+    void sinComentarioDejaUnaGlosaAutomatica() {
+        Ticket t = ticket(EstadoTicket.TRANSITO);
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(t));
+        when(guiasClient.contarGuiasDeTicket("t-1")).thenReturn(1L);
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketResponse r = service.cambiarEstado(
+                "t-1",
+                new CambioEstadoRequest(EstadoTicket.FINALIZADO, null, List.of(), null, null),
+                "TECNICO");
+
+        assertEquals("Cambio de estado a Finalizado", r.solucion());
+        assertEquals("Cambio de estado a Finalizado", t.getHistorial().get(0).getComentario());
     }
 }

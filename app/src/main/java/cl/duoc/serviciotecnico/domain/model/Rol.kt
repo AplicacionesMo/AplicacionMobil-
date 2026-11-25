@@ -11,11 +11,11 @@ enum class Rol(val etiqueta: String) {
     COORDINADOR("Coordinador"),
     ADMIN("Administrador");
 
-    /** El tecnico avanza estados y cierra; coordinador y admin tambien pueden cancelar. */
+    /** El tecnico avanza estados y finaliza; coordinador y admin tambien pueden cancelar. */
     val estadosPermitidos: List<EstadoTicket>
         get() = when (this) {
-            TECNICO -> EstadoTicket.intermedios + EstadoTicket.CERRADO
-            COORDINADOR, ADMIN -> EstadoTicket.intermedios + EstadoTicket.CERRADO + EstadoTicket.CANCELADO
+            TECNICO -> EstadoTicket.intermedios + EstadoTicket.FINALIZADO
+            COORDINADOR, ADMIN -> EstadoTicket.intermedios + EstadoTicket.FINALIZADO + EstadoTicket.CANCELADO
         }
 
     val puedeCrearTickets: Boolean

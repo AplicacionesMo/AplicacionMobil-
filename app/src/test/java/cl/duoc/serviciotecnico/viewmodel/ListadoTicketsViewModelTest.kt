@@ -42,7 +42,7 @@ class ListadoTicketsViewModelTest {
     private val tabla = MutableStateFlow(
         listOf(
             Datos.ticket(EstadoTicket.ABIERTO),
-            Datos.ticket(EstadoTicket.CERRADO).copy(id = "t-2", numero = 2)
+            Datos.ticket(EstadoTicket.FINALIZADO).copy(id = "t-2", numero = 2)
         )
     )
 
@@ -91,7 +91,7 @@ class ListadoTicketsViewModelTest {
 
         assertEquals(2, vm.tickets.value.size)
 
-        vm.cambiarFiltro(EstadoTicket.CERRADO)
+        vm.cambiarFiltro(EstadoTicket.FINALIZADO)
         assertEquals(listOf("t-2"), vm.tickets.value.map { it.id })
 
         vm.cambiarFiltro(null)

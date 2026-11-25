@@ -1,5 +1,7 @@
 package cl.duoc.serviciotecnico.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
+
 import cl.duoc.serviciotecnico.data.repository.EquipoRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.DatosTicket
@@ -44,7 +46,7 @@ class FormularioTicketViewModelTest {
 
     @Test
     fun `formulario vacio no se envia y marca los errores`() {
-        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.COORDINADOR)
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, Rol.COORDINADOR)
 
         vm.guardar()
 
@@ -58,7 +60,7 @@ class FormularioTicketViewModelTest {
     fun `ticket nuevo valido se crea en el microservicio`() {
         val enviado = slot<DatosTicket>()
         coEvery { tickets.crear(capture(enviado), Rol.COORDINADOR) } returns Datos.ticket()
-        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.COORDINADOR)
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, Rol.COORDINADOR)
         llenar(vm)
 
         vm.guardar()
@@ -72,7 +74,7 @@ class FormularioTicketViewModelTest {
     @Test
     fun `error del servidor se muestra y permite reintentar`() {
         coEvery { tickets.crear(any(), any()) } throws Datos.errorHttp(400, "El titulo debe tener al menos 5 caracteres")
-        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.COORDINADOR)
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, Rol.COORDINADOR)
         llenar(vm)
 
         vm.guardar()
@@ -84,7 +86,7 @@ class FormularioTicketViewModelTest {
 
     @Test
     fun `un tecnico no puede crear tickets`() {
-        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.TECNICO)
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, Rol.TECNICO)
         llenar(vm)
 
         vm.guardar()
@@ -97,7 +99,7 @@ class FormularioTicketViewModelTest {
     @Test
     fun `el admin tambien puede crear tickets`() {
         coEvery { tickets.crear(any(), Rol.ADMIN) } returns Datos.ticket()
-        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.ADMIN)
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, Rol.ADMIN)
         llenar(vm)
 
         vm.guardar()
@@ -110,7 +112,7 @@ class FormularioTicketViewModelTest {
         coEvery { tickets.obtenerTicket("t-1") } returns Datos.ticket()
         coEvery { equipos.obtenerEquipo("eq-1") } returns Datos.equipo
         coEvery { tickets.actualizar("t-1", any()) } returns Datos.ticket()
-        val vm = FormularioTicketViewModel("t-1", tickets, equipos, Rol.TECNICO)
+        val vm = FormularioTicketViewModel("t-1", SavedStateHandle(), tickets, equipos, Rol.TECNICO)
 
         assertEquals("Equipo no enfria", vm.estado.value.titulo)
         assertEquals("ABC123", vm.estado.value.serie)
@@ -123,10 +125,10 @@ class FormularioTicketViewModelTest {
     }
 
     @Test
-    fun `ticket cerrado queda en solo lectura y no se guarda`() {
-        coEvery { tickets.obtenerTicket("t-1") } returns Datos.ticket(EstadoTicket.CERRADO)
+    fun `ticket finalizado queda en solo lectura y no se guarda`() {
+        coEvery { tickets.obtenerTicket("t-1") } returns Datos.ticket(EstadoTicket.FINALIZADO)
         coEvery { equipos.obtenerEquipo("eq-1") } returns Datos.equipo
-        val vm = FormularioTicketViewModel("t-1", tickets, equipos, Rol.TECNICO)
+        val vm = FormularioTicketViewModel("t-1", SavedStateHandle(), tickets, equipos, Rol.TECNICO)
 
         vm.guardar()
 
@@ -137,7 +139,7 @@ class FormularioTicketViewModelTest {
     @Test
     fun `ticket inexistente informa el problema`() {
         coEvery { tickets.obtenerTicket("x") } returns null
-        val vm = FormularioTicketViewModel("x", tickets, equipos, Rol.TECNICO)
+        val vm = FormularioTicketViewModel("x", SavedStateHandle(), tickets, equipos, Rol.TECNICO)
 
         assertEquals("No se encontro el ticket", vm.estado.value.mensaje)
     }

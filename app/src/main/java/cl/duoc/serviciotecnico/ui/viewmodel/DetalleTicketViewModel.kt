@@ -19,7 +19,6 @@ import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.domain.model.Rol
-import cl.duoc.serviciotecnico.domain.validation.Validaciones
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,24 +30,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Maximo de fotos que se pueden adjuntar a un cambio de estado. */
-const val MAX_FOTOS_CAMBIO = 5
-
-/** Formulario de cambio de estado: estado nuevo, comentario y fotos. */
+/**
+ * Formulario de cambio de estado: solo el estado nuevo.
+ * Las fotos, la ubicacion y el detalle del trabajo se registran en la guia de servicio,
+ * que es el documento que respalda la visita; pedirlos dos veces no aportaba nada.
+ */
 data class FormularioCambioEstado(
     val estadoSeleccionado: EstadoTicket? = null,
-    val comentario: String = "",
-    val fotos: List<String> = emptyList(),
-    val latitud: Double? = null,
-    val longitud: Double? = null,
     val errorEstado: String? = null,
-    val errorComentario: String? = null,
-    val errorUbicacion: String? = null,
     val enviando: Boolean = false
-) {
-    val puedeAgregarFotos: Boolean get() = fotos.size < MAX_FOTOS_CAMBIO
-    val tieneUbicacion: Boolean get() = latitud != null && longitud != null
-}
+)
 
 data class DetalleTicketUiState(
     val cargando: Boolean = true,
@@ -158,25 +149,6 @@ class DetalleTicketViewModel(
         it.copy(estadoSeleccionado = nuevo, errorEstado = null)
     }
 
-    fun cambiarComentario(texto: String) = actualizarFormulario {
-        it.copy(comentario = texto, errorComentario = null)
-    }
-
-    fun agregarFoto(uri: String) {
-        val actual = local.value.formulario
-        if (!actual.puedeAgregarFotos) {
-            mostrar("Máximo $MAX_FOTOS_CAMBIO fotos por cambio de estado")
-            return
-        }
-        actualizarFormulario { it.copy(fotos = it.fotos + uri) }
-    }
-
-    fun quitarFoto(uri: String) = actualizarFormulario { it.copy(fotos = it.fotos - uri) }
-
-    fun ubicacionObtenida(latitud: Double, longitud: Double) = actualizarFormulario {
-        it.copy(latitud = latitud, longitud = longitud, errorUbicacion = null)
-    }
-
     // ---------- Envio: aqui vive toda la validacion ----------
 
     fun enviarCambioDeEstado() {
@@ -189,32 +161,21 @@ class DetalleTicketViewModel(
             f.estadoSeleccionado == ticket.estado -> "El ticket ya está en ese estado"
             else -> null
         }
-        val errorComentario = Validaciones.largoMinimo(f.comentario, 5, "El comentario")
-        val errorUbicacion =
-            if (!f.tieneUbicacion) "Debes registrar tu ubicación para cambiar el estado" else null
-
-        if (errorEstado != null || errorComentario != null || errorUbicacion != null) {
-            actualizarFormulario {
-                it.copy(
-                    errorEstado = errorEstado,
-                    errorComentario = errorComentario,
-                    errorUbicacion = errorUbicacion
-                )
-            }
+        if (errorEstado != null) {
+            actualizarFormulario { it.copy(errorEstado = errorEstado) }
             return
         }
         val nuevo = f.estadoSeleccionado ?: return
 
         actualizarFormulario { it.copy(enviando = true) }
         viewModelScope.launch {
-            // Regla de negocio: no se cierra un ticket sin al menos una guia emitida
-            if (nuevo == EstadoTicket.CERRADO && !repository.tieneGuiasEmitidas(ticketId)) {
+            // Regla de negocio: no se finaliza un ticket sin al menos una guia emitida.
+            // Abierto, En transito y Cancelado se alcanzan sin guia.
+            if (nuevo.exigeGuia && !repository.tieneGuiasEmitidas(ticketId)) {
                 actualizarFormulario {
-                    it.copy(
-                        enviando = false,
-                        errorEstado = "Para cerrar el ticket debes emitir al menos una guía"
-                    )
+                    it.copy(enviando = false, errorEstado = MENSAJE_SIN_GUIA)
                 }
+                mostrar(MENSAJE_SIN_GUIA)
                 return@launch
             }
             // PATCH /api/v1/tickets/{id}/estado en ms-tickets (el servidor vuelve a validar todo)
@@ -222,10 +183,6 @@ class DetalleTicketViewModel(
                 repository.registrarCambioDeEstado(
                     ticketId = ticketId,
                     nuevoEstado = nuevo,
-                    comentario = f.comentario.trim(),
-                    urisDeFotos = f.fotos,
-                    latitud = f.latitud,
-                    longitud = f.longitud,
                     rol = rol
                 )
             }
@@ -268,6 +225,8 @@ class DetalleTicketViewModel(
     }
 
     companion object {
+        const val MENSAJE_SIN_GUIA = "Debes crear una guía"
+
         fun factory(ticketId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ServicioTecnicoApp

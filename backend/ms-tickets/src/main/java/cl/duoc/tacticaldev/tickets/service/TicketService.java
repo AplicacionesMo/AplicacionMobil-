@@ -78,7 +78,8 @@ public class TicketService {
     /**
      * Cambia el estado y deja registro en el historial.
      * Reglas: no se modifica un ticket final, solo el coordinador cancela,
-     * y no se cierra un ticket sin al menos una guia (se pregunta a ms-guias).
+     * y no se finaliza un ticket sin al menos una guia (se pregunta a ms-guias).
+     * Abierto, Transito y Cancelado se alcanzan sin guia.
      */
     @Transactional
     public TicketResponse cambiarEstado(String id, CambioEstadoRequest request, String rol) {
@@ -92,17 +93,17 @@ public class TicketService {
         if (nuevo == EstadoTicket.CANCELADO && !esGestor(rol)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Solo el coordinador o el administrador pueden cancelar un ticket");
         }
-        if (nuevo == EstadoTicket.CERRADO && guiasClient.contarGuiasDeTicket(id) == 0) {
-            throw new ApiException(HttpStatus.CONFLICT, "Para cerrar el ticket debes emitir al menos una guia");
+        if (nuevo == EstadoTicket.FINALIZADO && guiasClient.contarGuiasDeTicket(id) == 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "Debes crear una guia");
         }
 
-        String comentario = request.comentario().trim();
+        String comentario = comentarioDe(request, nuevo);
         CambioEstado cambio = new CambioEstado(ticket, ticket.getEstado(), nuevo, comentario,
                 request.urisDeFotos(), request.latitud(), request.longitud());
         ticket.getHistorial().add(cambio);
         ticket.setEstado(nuevo);
 
-        if (nuevo == EstadoTicket.CERRADO) {
+        if (nuevo == EstadoTicket.FINALIZADO) {
             ticket.setFechaCierre(LocalDateTime.now());
             ticket.setSolucion(comentario);
         } else if (nuevo == EstadoTicket.CANCELADO) {
@@ -134,6 +135,24 @@ public class TicketService {
     }
 
     // ---------- Apoyo ----------
+
+    /**
+     * El comentario es opcional: el detalle del trabajo vive en la guia de servicio.
+     * Si no viene, se deja una glosa automatica para que el historial igual se entienda.
+     */
+    private String comentarioDe(CambioEstadoRequest request, EstadoTicket nuevo) {
+        String comentario = request.comentario() == null ? "" : request.comentario().trim();
+        return comentario.isEmpty() ? "Cambio de estado a " + etiqueta(nuevo) : comentario;
+    }
+
+    private String etiqueta(EstadoTicket estado) {
+        return switch (estado) {
+            case ABIERTO -> "Abierto";
+            case TRANSITO -> "En transito";
+            case FINALIZADO -> "Finalizado";
+            case CANCELADO -> "Cancelado";
+        };
+    }
 
     /** Coordinador y administrador gestionan tickets; el tecnico solo trabaja en ellos. */
     private boolean esGestor(String rol) {

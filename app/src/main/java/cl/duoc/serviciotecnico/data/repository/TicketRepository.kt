@@ -83,17 +83,18 @@ class TicketRepository(
     }
 
     /**
-     * Aplica un cambio de estado en el servidor. Si es Cerrado, el comentario queda como
+     * Aplica un cambio de estado en el servidor. Si es Finalizado, el comentario queda como
      * solucion; si es Cancelado, como motivo. Luego se refresca el historial.
+     * El comentario es opcional: si va vacio, ms-tickets deja una glosa automatica.
      */
     suspend fun registrarCambioDeEstado(
         ticketId: String,
         nuevoEstado: EstadoTicket,
-        comentario: String,
-        urisDeFotos: List<String>,
-        latitud: Double?,
-        longitud: Double?,
-        rol: Rol
+        rol: Rol,
+        comentario: String = "",
+        urisDeFotos: List<String> = emptyList(),
+        latitud: Double? = null,
+        longitud: Double? = null
     ): Ticket {
         val respuesta = api.cambiarEstado(
             id = ticketId,
