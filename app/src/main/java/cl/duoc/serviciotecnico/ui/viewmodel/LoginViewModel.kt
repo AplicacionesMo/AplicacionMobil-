@@ -9,6 +9,7 @@ import cl.duoc.serviciotecnico.ServicioTecnicoApp
 import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
 import cl.duoc.serviciotecnico.data.remote.capturarErrores
 import cl.duoc.serviciotecnico.data.repository.SesionRepository
+import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.CuentaDePrueba
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +38,8 @@ data class LoginUiState(
 }
 
 class LoginViewModel(
-    private val sesionRepository: SesionRepository
+    private val sesionRepository: SesionRepository,
+    private val ticketRepository: TicketRepository
 ) : ViewModel() {
 
     private val _estado = MutableStateFlow(LoginUiState())
@@ -97,7 +99,11 @@ class LoginViewModel(
         _estado.update { it.copy(ingresando = true, mensaje = null) }
         viewModelScope.launch {
             // POST /api/v1/auth/login en ms-usuarios
-            capturarErrores { sesionRepository.iniciarSesion(s.correo, s.clave) }
+            capturarErrores {
+                sesionRepository.iniciarSesion(s.correo, s.clave)
+                // La cache es del usuario anterior: se vacia antes de entrar al listado
+                ticketRepository.limpiarCache()
+            }
                 .onSuccess { _estado.update { it.copy(ingresando = false, ingresado = true) } }
                 .onFailure { error ->
                     _estado.update { it.copy(ingresando = false, mensaje = ErrorDeRed.mensaje(error)) }
@@ -109,7 +115,7 @@ class LoginViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ServicioTecnicoApp
-                LoginViewModel(app.sesionRepository)
+                LoginViewModel(app.sesionRepository, app.ticketRepository)
             }
         }
     }

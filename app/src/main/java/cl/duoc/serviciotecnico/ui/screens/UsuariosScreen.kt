@@ -27,6 +27,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
+import cl.duoc.serviciotecnico.ui.components.BotonRedondo
+import androidx.compose.foundation.border
+import androidx.compose.material3.CardDefaults
+import cl.duoc.serviciotecnico.ui.theme.GrisAcentoClaro
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -38,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -84,13 +91,17 @@ fun UsuariosScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("Usuarios") },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
+                    BotonRedondo(
+                            icono = Icons.AutoMirrored.Filled.ArrowBack,
+                            descripcion = "Volver",
+                            onClick = onVolver
+                        )
                 },
                 actions = {
                     IconButton(onClick = vm::cargar, enabled = !estado.cargando) {
@@ -124,13 +135,22 @@ fun UsuariosScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(estado.usuarios, key = { it.id }) { usuario ->
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text(usuario.nombre, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    usuario.nombre,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
                                 Text(
                                     usuario.correo,
                                     style = MaterialTheme.typography.bodyMedium,

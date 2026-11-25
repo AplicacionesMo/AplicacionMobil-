@@ -2,6 +2,7 @@ package cl.duoc.serviciotecnico.viewmodel
 
 import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
 import cl.duoc.serviciotecnico.data.repository.SesionRepository
+import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.domain.model.UsuarioSesion
 import cl.duoc.serviciotecnico.ui.viewmodel.CampoLogin
@@ -26,8 +27,9 @@ class LoginViewModelTest {
     val mainRule = MainDispatcherRule()
 
     private val sesion: SesionRepository = mockk()
+    private val tickets: TicketRepository = mockk(relaxed = true)
 
-    private fun vmCon(correo: String, clave: String) = LoginViewModel(sesion).apply {
+    private fun vmCon(correo: String, clave: String) = LoginViewModel(sesion, tickets).apply {
         cambiarCorreo(correo)
         cambiarClave(clave)
     }
@@ -45,7 +47,7 @@ class LoginViewModelTest {
 
     @Test
     fun `los errores no se muestran antes de tocar el campo`() {
-        val vm = LoginViewModel(sesion)
+        val vm = LoginViewModel(sesion, tickets)
 
         assertNull(vm.estado.value.errorVisible(CampoLogin.CORREO))
         assertFalse(vm.estado.value.formularioValido)
@@ -101,7 +103,7 @@ class LoginViewModelTest {
     @Test
     fun `las tres cuentas de prueba quedan validas al tocarlas`() {
         SesionRepository.CUENTAS_DE_PRUEBA.forEach { cuenta ->
-            val vm = LoginViewModel(sesion)
+            val vm = LoginViewModel(sesion, tickets)
 
             vm.usarCuentaDePrueba(cuenta)
 
@@ -109,5 +111,27 @@ class LoginViewModelTest {
             assertNull(vm.estado.value.errorVisible(CampoLogin.CORREO))
             assertNull(vm.estado.value.errorVisible(CampoLogin.CLAVE))
         }
+    }
+
+    @Test
+    fun `al entrar se vacia la cache del usuario anterior`() {
+        coEvery { sesion.iniciarSesion(any(), any()) } returns
+            UsuarioSesion(1L, "Tecnico", "tecnico@tacticaldev.cl", Rol.TECNICO)
+        val vm = vmCon("tecnico@tacticaldev.cl", "tecnico123")
+
+        vm.ingresar()
+
+        assertTrue(vm.estado.value.ingresado)
+        coVerify { tickets.limpiarCache() }
+    }
+
+    @Test
+    fun `si el login falla la cache no se toca`() {
+        coEvery { sesion.iniciarSesion(any(), any()) } throws Datos.errorHttp(401, "Credenciales incorrectas")
+        val vm = vmCon("tecnico@tacticaldev.cl", "malaclave")
+
+        vm.ingresar()
+
+        coVerify(exactly = 0) { tickets.limpiarCache() }
     }
 }

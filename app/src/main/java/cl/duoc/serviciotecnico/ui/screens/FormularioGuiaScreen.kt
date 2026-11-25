@@ -20,6 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
+import cl.duoc.serviciotecnico.ui.components.BotonRedondo
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -30,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.font.FontWeight
+import cl.duoc.serviciotecnico.ui.theme.VerdeProfundo
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -71,13 +76,17 @@ fun FormularioGuiaScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text("Nueva guia de servicio") },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
+                    BotonRedondo(
+                            icono = Icons.AutoMirrored.Filled.ArrowBack,
+                            descripcion = "Volver",
+                            onClick = onVolver
+                        )
                 }
             )
         },
@@ -155,7 +164,12 @@ fun FormularioGuiaScreen(
 
             HorizontalDivider()
 
-            Text("Fotografias del trabajo", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Fotografias del trabajo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = VerdeProfundo
+            )
             BotonDeFoto(
                 onFotoTomada = { uri -> vm.agregarFoto(uri.toString()) },
                 modifier = Modifier.fillMaxWidth()
@@ -170,7 +184,12 @@ fun FormularioGuiaScreen(
 
             HorizontalDivider()
 
-            Text("Ubicacion del servicio", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Ubicacion del servicio",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = VerdeProfundo
+            )
             BotonDeUbicacion(
                 onUbicacionObtenida = vm::registrarUbicacion,
                 modifier = Modifier.fillMaxWidth()

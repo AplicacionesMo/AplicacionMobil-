@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cl.duoc.serviciotecnico.ServicioTecnicoApp
+import cl.duoc.serviciotecnico.ui.components.FondoConOndas
 import cl.duoc.serviciotecnico.ui.screens.CrearUsuarioScreen
 import cl.duoc.serviciotecnico.ui.screens.DetalleGuiaScreen
 import cl.duoc.serviciotecnico.ui.screens.DetalleTicketScreen
@@ -34,6 +35,9 @@ fun NavegacionApp() {
         if (app.sesionRepository.haySesionActiva()) Rutas.LISTADO_TICKETS else Rutas.LOGIN
     }
 
+    // El fondo blanco con ondas vive aqui: todas las pantallas de adentro lo heredan.
+    // El login no se ve afectado porque dibuja su propia imagen encima.
+    FondoConOndas {
     NavHost(
         navController = navController,
         startDestination = inicio,
@@ -151,4 +155,6 @@ fun NavegacionApp() {
             )
         }
     }
+    }
+
 }

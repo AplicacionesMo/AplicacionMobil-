@@ -50,6 +50,16 @@ class TicketRepository(
     suspend fun tieneGuiasEmitidas(ticketId: String): Boolean =
         guiaDao.contarPorTicket(ticketId) > 0
 
+    /**
+     * Vacia la cache local. Se llama al iniciar sesion: Room no distingue de quien
+     * son los datos, y sin esto un tecnico veia por un momento los tickets del
+     * usuario anterior, justo lo que el filtro del servidor evita.
+     * Al borrar los tickets, Room arrastra en cascada sus guias, fotos e historial.
+     */
+    suspend fun limpiarCache() {
+        ticketDao.eliminarTodos()
+    }
+
     // ---------- Sincronizacion (GET) ----------
 
     /** Descarga todos los tickets y deja la cache igual al servidor. */

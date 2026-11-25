@@ -34,6 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.border
+import cl.duoc.serviciotecnico.ui.theme.GrisAcentoClaro
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -45,10 +47,29 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
+import cl.duoc.serviciotecnico.ui.components.BotonRedondo
 import cl.duoc.serviciotecnico.ui.components.EtiquetaEstado
 import cl.duoc.serviciotecnico.ui.components.ListaDeTicketsEsqueleto
 import cl.duoc.serviciotecnico.ui.viewmodel.EstadoClima
 import cl.duoc.serviciotecnico.ui.viewmodel.ListadoTicketsViewModel
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import cl.duoc.serviciotecnico.R
+import cl.duoc.serviciotecnico.ui.theme.BlancoTexto
+import cl.duoc.serviciotecnico.ui.theme.NegroTexto
+import cl.duoc.serviciotecnico.ui.theme.VerdeMarca
+import cl.duoc.serviciotecnico.ui.theme.VerdeProfundo
 import java.time.format.DateTimeFormatter
 
 private val formatoFecha = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")
@@ -69,43 +90,72 @@ fun ListadoTicketsScreen(
     val clima by vm.clima.collectAsStateWithLifecycle()
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = {
-                    Column {
-                        Text("Tickets")
-                        vm.usuario?.let {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(R.drawable.logo_servicio),
+                            contentDescription = null,
+                            modifier = Modifier.size(42.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column {
                             Text(
-                                "${it.nombre} · ${it.rol.etiqueta}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                "SERVICIO TÉCNICO",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
+                            vm.usuario?.let {
+                                Text(
+                                    "${it.nombre} · ${it.rol.etiqueta}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 },
                 actions = {
-                    IconButton(onClick = vm::refrescar, enabled = !sincronizando) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Actualizar desde el servidor")
-                    }
+                    BotonRedondo(
+                        icono = Icons.Filled.Refresh,
+                        descripcion = "Actualizar desde el servidor",
+                        habilitado = !sincronizando,
+                        onClick = vm::refrescar
+                    )
                     // Solo el administrador ve el boton de usuarios
                     if (vm.usuario?.rol?.puedeGestionarUsuarios == true) {
-                        IconButton(onClick = onGestionarUsuarios) {
-                            Icon(Icons.Filled.ManageAccounts, contentDescription = "Gestionar usuarios")
+                        Spacer(Modifier.width(8.dp))
+                        BotonRedondo(
+                            icono = Icons.Filled.ManageAccounts,
+                            descripcion = "Gestionar usuarios",
+                            onClick = onGestionarUsuarios
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    BotonRedondo(
+                        icono = Icons.AutoMirrored.Filled.Logout,
+                        descripcion = "Cerrar sesion",
+                        onClick = {
+                            vm.cerrarSesion()
+                            onSesionCerrada()
                         }
-                    }
-                    IconButton(onClick = {
-                        vm.cerrarSesion()
-                        onSesionCerrada()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesion")
-                    }
+                    )
+                    Spacer(Modifier.width(8.dp))
                 }
             )
         },
         floatingActionButton = {
             // El tecnico no crea tickets: solo coordinador y administrador ven el boton
             if (vm.usuario?.rol?.puedeCrearTickets == true) {
-                FloatingActionButton(onClick = onCrearTicket) {
+                FloatingActionButton(
+                    onClick = onCrearTicket,
+                    containerColor = VerdeProfundo,
+                    contentColor = BlancoTexto,
+                    shape = CircleShape
+                ) {
                     Icon(Icons.Filled.Add, contentDescription = "Crear ticket")
                 }
             }
@@ -171,14 +221,18 @@ private fun FiltroDeEstados(
             FilterChip(
                 selected = seleccionado == null,
                 onClick = { onSeleccionar(null) },
-                label = { Text("Todos") }
+                label = { Text("Todos") },
+                shape = RoundedCornerShape(50),
+                colors = coloresDeChip()
             )
         }
         items(EstadoTicket.entries) { estado ->
             FilterChip(
                 selected = seleccionado == estado,
                 onClick = { onSeleccionar(estado) },
-                label = { Text(estado.etiqueta) }
+                label = { Text(estado.etiqueta) },
+                shape = RoundedCornerShape(50),
+                colors = coloresDeChip()
             )
         }
     }
@@ -191,31 +245,63 @@ private fun TarjetaTicket(
     modifier: Modifier = Modifier
 ) {
     Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = BlancoTexto),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier
             .fillMaxWidth()
+            .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Row(
+            modifier = Modifier.padding(start = 18.dp, end = 10.dp, top = 16.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "N° ${ticket.numero}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = VerdeProfundo
+                    )
+                    EtiquetaEstado(estado = ticket.estado)
+                }
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "N° ${ticket.numero}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    ticket.titulo,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-                EtiquetaEstado(estado = ticket.estado)
+                Text(
+                    ticket.cliente,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.CalendarMonth,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = ticket.fechaCreacion.format(formatoFecha),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            Text(ticket.titulo, style = MaterialTheme.typography.titleMedium)
-            Text(ticket.cliente, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = ticket.fechaCreacion.format(formatoFecha),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -250,16 +336,18 @@ private fun AvisoSinConexion(texto: String) {
 @Composable
 private fun TarjetaClima(estado: EstadoClima, onReintentar: () -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = VerdeMarca.copy(alpha = 0.12f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                Icons.Filled.Thermostat,
+                Icons.Filled.LocationOn,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                tint = VerdeProfundo
             )
             Spacer(Modifier.width(12.dp))
             when (estado) {
@@ -272,18 +360,19 @@ private fun TarjetaClima(estado: EstadoClima, onReintentar: () -> Unit) {
                 is EstadoClima.Listo -> Column(Modifier.weight(1f)) {
                     Text(
                         estado.clima.titulo,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NegroTexto
                     )
                     Text(
                         estado.clima.resumen,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         estado.clima.recomendacion,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -301,3 +390,12 @@ private fun TarjetaClima(estado: EstadoClima, onReintentar: () -> Unit) {
         }
     }
 }
+
+/** Chip seleccionado en verde oscuro relleno; sin seleccionar, blanco con borde. */
+@Composable
+private fun coloresDeChip() = FilterChipDefaults.filterChipColors(
+    containerColor = BlancoTexto,
+    labelColor = NegroTexto,
+    selectedContainerColor = VerdeProfundo,
+    selectedLabelColor = BlancoTexto
+)

@@ -29,6 +29,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
+import cl.duoc.serviciotecnico.ui.components.BotonRedondo
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -40,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.font.FontWeight
+import cl.duoc.serviciotecnico.ui.theme.VerdeProfundo
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -81,13 +86,17 @@ fun FormularioTicketScreen(
     val habilitado = !estado.soloLectura
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text(titulo) },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
+                    BotonRedondo(
+                            icono = Icons.AutoMirrored.Filled.ArrowBack,
+                            descripcion = "Volver",
+                            onClick = onVolver
+                        )
                 }
             )
         },
@@ -107,7 +116,12 @@ fun FormularioTicketScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // ---------- Formulario 1: Ticket ----------
-            Text("Datos del ticket", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Datos del ticket",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = VerdeProfundo
+            )
 
             CampoTextoValidado(
                 valor = estado.titulo,
@@ -155,7 +169,12 @@ fun FormularioTicketScreen(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
             // ---------- Formulario 2: Equipo ----------
-            Text("Datos del equipo", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Datos del equipo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = VerdeProfundo
+            )
 
             CampoTextoValidado(
                 valor = estado.nombreEquipo,
@@ -195,7 +214,12 @@ fun FormularioTicketScreen(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
             // ---------- Formulario 3: Asignacion ----------
-            Text("Tecnico asignado", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Tecnico asignado",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = VerdeProfundo
+            )
             SelectorDeTecnico(
                 elegido = estado.tecnicoElegido,
                 tecnicos = estado.tecnicosDisponibles,

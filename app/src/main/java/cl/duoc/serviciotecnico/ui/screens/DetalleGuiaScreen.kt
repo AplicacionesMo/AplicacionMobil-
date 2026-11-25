@@ -23,6 +23,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
+import cl.duoc.serviciotecnico.ui.components.BotonRedondo
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Handyman
+import androidx.compose.material.icons.filled.HowToReg
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import cl.duoc.serviciotecnico.ui.components.DatoConIcono
+import cl.duoc.serviciotecnico.ui.components.TituloDeSeccion
+import androidx.compose.foundation.border
+import androidx.compose.material3.CardDefaults
+import cl.duoc.serviciotecnico.ui.theme.GrisAcentoClaro
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -32,6 +55,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import cl.duoc.serviciotecnico.ui.theme.VerdeProfundo
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -63,13 +88,17 @@ fun DetalleGuiaScreen(
     val guia = estado.guia
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text(if (guia != null) "Guía N° ${guia.numero}" else "Guía de servicio") },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
+                    BotonRedondo(
+                            icono = Icons.AutoMirrored.Filled.ArrowBack,
+                            descripcion = "Volver",
+                            onClick = onVolver
+                        )
                 }
             )
         },
@@ -94,51 +123,85 @@ fun DetalleGuiaScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DatoGuia("Fecha", guia.fecha.format(formatoFechaGuia))
-                        DatoGuia("Técnico", guia.tecnico)
-                        DatoGuia("Recibido por", guia.recibidoPor)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            DatoGuia("Dirección", guia.direccion, Modifier.weight(1f))
-                            IconButton(onClick = { Mapas.abrirDireccion(context, guia.direccion) }) {
-                                Icon(Icons.Filled.Map, contentDescription = "Abrir dirección en el mapa")
-                            }
+                        TituloDeSeccion(Icons.Filled.Description, "Guía N° ${guia.numero}")
+                        DatoConIcono(Icons.Filled.CalendarMonth, "Fecha", guia.fecha.format(formatoFechaGuia))
+                        DatoConIcono(Icons.Filled.Build, "Técnico", guia.tecnico)
+                        DatoConIcono(Icons.Filled.HowToReg, "Recibido por", guia.recibidoPor)
+                        DatoConIcono(
+                            icono = Icons.Filled.LocationOn,
+                            etiqueta = "Dirección",
+                            valor = guia.direccion
+                        ) {
+                            BotonRedondo(
+                                icono = Icons.Filled.Map,
+                                descripcion = "Abrir dirección en el mapa",
+                                onClick = { Mapas.abrirDireccion(context, guia.direccion) }
+                            )
                         }
                         val lat = guia.latitud
                         val lon = guia.longitud
                         if (lat != null && lon != null) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                DatoGuia("Coordenadas", "%.5f, %.5f".format(lat, lon), Modifier.weight(1f))
-                                IconButton(onClick = {
-                                    Mapas.abrirCoordenadas(context, lat, lon, "Guía N° ${guia.numero}")
-                                }) {
-                                    Icon(Icons.Filled.Map, contentDescription = "Ver coordenadas en el mapa")
-                                }
+                            DatoConIcono(
+                                icono = Icons.Filled.MyLocation,
+                                etiqueta = "Coordenadas",
+                                valor = "%.5f, %.5f".format(lat, lon)
+                            ) {
+                                BotonRedondo(
+                                    icono = Icons.Filled.Map,
+                                    descripcion = "Ver coordenadas en el mapa",
+                                    onClick = {
+                                        Mapas.abrirCoordenadas(context, lat, lon, "Guía N° ${guia.numero}")
+                                    }
+                                )
                             }
                         }
                     }
                 }
 
                 estado.equipo?.let { equipo ->
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Equipo atendido", style = MaterialTheme.typography.titleMedium)
-                            DatoGuia("Nombre", equipo.nombre)
-                            DatoGuia("Modelo", equipo.modelo)
-                            DatoGuia("N° de serie", equipo.serie)
-                            DatoGuia("Propiedad", equipo.propiedad.etiqueta)
+                            TituloDeSeccion(Icons.Filled.Inventory2, "Equipo atendido")
+                            DatoConIcono(Icons.Filled.Label, "Nombre", equipo.nombre)
+                            DatoConIcono(Icons.Filled.Category, "Modelo", equipo.modelo)
+                            DatoConIcono(Icons.Filled.QrCode2, "N° de serie", equipo.serie)
+                            DatoConIcono(Icons.Filled.Shield, "Propiedad", equipo.propiedad.etiqueta)
                         }
                     }
                 }
 
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Trabajo", style = MaterialTheme.typography.titleMedium)
-                        DatoGuia("Trabajo realizado", guia.trabajoRealizado)
+                        TituloDeSeccion(Icons.Filled.Handyman, "Trabajo")
+                        DatoConIcono(Icons.Filled.Checklist, "Trabajo realizado", guia.trabajoRealizado)
                         HorizontalDivider()
-                        DatoGuia("Repuestos", guia.repuestos.ifBlank { "Sin repuestos" })
-                        DatoGuia("Observaciones", guia.observaciones.ifBlank { "Sin observaciones" })
+                        DatoConIcono(
+                            Icons.Filled.Settings,
+                            "Repuestos",
+                            guia.repuestos.ifBlank { "Sin repuestos" }
+                        )
+                        DatoConIcono(
+                            Icons.Filled.Notes,
+                            "Observaciones",
+                            guia.observaciones.ifBlank { "Sin observaciones" }
+                        )
                     }
                 }
 

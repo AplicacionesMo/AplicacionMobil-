@@ -33,6 +33,13 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
+import cl.duoc.serviciotecnico.ui.components.BotonRedondo
+import cl.duoc.serviciotecnico.ui.theme.VerdeProfundo
+import androidx.compose.foundation.border
+import androidx.compose.material3.CardDefaults
+import cl.duoc.serviciotecnico.ui.theme.GrisAcentoClaro
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +76,29 @@ import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketUiState
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketViewModel
 import cl.duoc.serviciotecnico.ui.viewmodel.FormularioCambioEstado
 import cl.duoc.serviciotecnico.util.Mapas
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Build
+import cl.duoc.serviciotecnico.domain.model.Prioridad
+import cl.duoc.serviciotecnico.ui.components.CajaDeAviso
+import cl.duoc.serviciotecnico.ui.components.DatoConIcono
+import cl.duoc.serviciotecnico.ui.components.DatoConPildora
+import cl.duoc.serviciotecnico.ui.components.TituloDeSeccion
+import cl.duoc.serviciotecnico.ui.theme.EstadoCancelado
+import cl.duoc.serviciotecnico.ui.theme.EstadoFinalizado
+import cl.duoc.serviciotecnico.ui.theme.EstadoTransito
 import java.time.format.DateTimeFormatter
 
 private val formatoFecha = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")
@@ -125,13 +155,17 @@ fun DetalleTicketScreen(
     val ticket = estado.ticket
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 title = { Text(if (ticket != null) "Ticket N° ${ticket.numero}" else "Ticket") },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
+                    BotonRedondo(
+                            icono = Icons.AutoMirrored.Filled.ArrowBack,
+                            descripcion = "Volver",
+                            onClick = onVolver
+                        )
                 },
                 actions = {
                     IconButton(onClick = vm::sincronizar, enabled = !estado.sincronizando) {
@@ -211,7 +245,12 @@ private fun ContenidoDetalle(
     ) {
         // ---------- Datos del ticket ----------
         item {
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(
                         Modifier.fillMaxWidth(),
@@ -226,15 +265,33 @@ private fun ContenidoDetalle(
                         Spacer(Modifier.width(8.dp))
                         EtiquetaEstado(estado = ticket.estado)
                     }
-                    Dato("Cliente", ticket.cliente)
-                    Dato("Prioridad", ticket.prioridad.etiqueta)
-                    Dato("Tecnico asignado", ticket.tecnicoNombre ?: "Sin asignar")
-                    Dato("Creado", ticket.fechaCreacion.format(formatoFecha))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Dato("Dirección", ticket.direccion, Modifier.weight(1f))
-                        IconButton(onClick = { Mapas.abrirDireccion(context, ticket.direccion) }) {
-                            Icon(Icons.Filled.Map, contentDescription = "Abrir en el mapa")
-                        }
+                    DatoConIcono(Icons.Filled.Sell, "Cliente", ticket.cliente)
+                    DatoConPildora(
+                        icono = Icons.Filled.Flag,
+                        etiqueta = "Prioridad",
+                        valor = ticket.prioridad.etiqueta,
+                        color = colorDePrioridad(ticket.prioridad)
+                    )
+                    DatoConIcono(
+                        Icons.Filled.Build,
+                        "Técnico asignado",
+                        ticket.tecnicoNombre ?: "Sin asignar"
+                    )
+                    DatoConIcono(
+                        Icons.Filled.CalendarMonth,
+                        "Creado",
+                        ticket.fechaCreacion.format(formatoFecha)
+                    )
+                    DatoConIcono(
+                        icono = Icons.Filled.LocationOn,
+                        etiqueta = "Dirección",
+                        valor = ticket.direccion
+                    ) {
+                        BotonRedondo(
+                            icono = Icons.Filled.Map,
+                            descripcion = "Abrir en el mapa",
+                            onClick = { Mapas.abrirDireccion(context, ticket.direccion) }
+                        )
                     }
                     HorizontalDivider()
                     Text(ticket.descripcion, style = MaterialTheme.typography.bodyMedium)
@@ -245,13 +302,18 @@ private fun ContenidoDetalle(
         // ---------- Equipo ----------
         estado.equipo?.let { equipo ->
             item {
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Equipo", style = MaterialTheme.typography.titleMedium)
-                        Dato("Nombre", equipo.nombre)
-                        Dato("Modelo", equipo.modelo)
-                        Dato("N° de serie", equipo.serie)
-                        Dato("Propiedad", equipo.propiedad.etiqueta)
+                        TituloDeSeccion(Icons.Filled.Inventory2, "Equipo")
+                        DatoConIcono(Icons.Filled.Label, "Nombre", equipo.nombre)
+                        DatoConIcono(Icons.Filled.Category, "Modelo", equipo.modelo)
+                        DatoConIcono(Icons.Filled.QrCode2, "N° de serie", equipo.serie)
+                        DatoConIcono(Icons.Filled.Shield, "Propiedad", equipo.propiedad.etiqueta)
                     }
                 }
             }
@@ -272,12 +334,26 @@ private fun ContenidoDetalle(
             }
         } else {
             item {
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Ticket ${ticket.estado.etiqueta.lowercase()}", style = MaterialTheme.typography.titleMedium)
-                        ticket.solucion?.let { Dato("Solución", it) }
-                        ticket.motivoCancelacion?.let { Dato("Motivo", it) }
-                        ticket.fechaCierre?.let { Dato("Fecha de cierre", it.format(formatoFecha)) }
+                        TituloDeSeccion(
+                            Icons.Filled.Lock,
+                            "Ticket ${ticket.estado.etiqueta.lowercase()}"
+                        )
+                        ticket.solucion?.let {
+                            DatoConIcono(Icons.Filled.CheckCircle, "Solución", it)
+                        }
+                        ticket.motivoCancelacion?.let {
+                            DatoConIcono(Icons.Filled.Cancel, "Motivo", it)
+                        }
+                        ticket.fechaCierre?.let {
+                            DatoConIcono(Icons.Filled.EventAvailable, "Fecha de cierre", it.format(formatoFecha))
+                        }
                         Text(
                             "Este ticket es de solo lectura.",
                             style = MaterialTheme.typography.bodySmall,
@@ -324,9 +400,14 @@ private fun FormularioDeCambio(
     onMotivoCambia: (String) -> Unit,
     onEnviar: () -> Unit
 ) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Cambiar estado", style = MaterialTheme.typography.titleMedium)
+            TituloDeSeccion(Icons.Filled.SwapHoriz, "Cambiar estado")
             Text(
                 "Estado actual: ${actual.etiqueta}",
                 style = MaterialTheme.typography.bodyMedium,
@@ -363,11 +444,7 @@ private fun FormularioDeCambio(
 
             // El detalle del trabajo va en la guia, no aqui
             if (!tieneGuias) {
-                Text(
-                    "Para finalizar el ticket primero debes crear una guía de servicio.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                CajaDeAviso("Para finalizar el ticket primero debes crear una guía de servicio.")
             }
 
             BotonGuardar(
@@ -434,7 +511,8 @@ private fun TarjetaCambio(cambio: CambioEstado, modifier: Modifier = Modifier) {
                 Text(
                     "${cambio.estadoAnterior.etiqueta} → ${cambio.estadoNuevo.etiqueta}",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    color = VerdeProfundo,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
@@ -471,13 +549,20 @@ private fun TarjetaCambio(cambio: CambioEstado, modifier: Modifier = Modifier) {
 
 @Composable
 private fun TarjetaGuia(guia: Guia, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Card(modifier = modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, GrisAcentoClaro, MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     "Guía N° ${guia.numero}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = VerdeProfundo
                 )
                 Text(
                     guia.fecha.format(formatoFecha),
@@ -498,7 +583,13 @@ private fun TarjetaGuia(guia: Guia, onClick: () -> Unit, modifier: Modifier = Mo
 
 @Composable
 private fun Titulo(texto: String) {
-    Text(texto, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+    Text(
+        text = texto,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = VerdeProfundo,
+        modifier = Modifier.padding(top = 8.dp)
+    )
 }
 
 @Composable
@@ -514,10 +605,18 @@ private fun TextoSecundario(texto: String) {
 private fun Dato(etiqueta: String, valor: String, modifier: Modifier = Modifier) {
     Column(modifier) {
         Text(
-            etiqueta,
+            text = etiqueta.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(valor, style = MaterialTheme.typography.bodyLarge)
     }
+}
+
+/** La prioridad se lee de un vistazo por el color de su pildora. */
+@Composable
+private fun colorDePrioridad(prioridad: Prioridad): Color = when (prioridad) {
+    Prioridad.BAJA -> EstadoFinalizado
+    Prioridad.MEDIA -> EstadoTransito
+    Prioridad.ALTA -> EstadoCancelado
 }

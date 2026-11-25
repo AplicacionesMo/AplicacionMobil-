@@ -1,53 +1,56 @@
 package cl.duoc.serviciotecnico.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 private val EsquemaClaro = lightColorScheme(
-    primary = AzulPrincipal,
+    primary = VerdeBoton,
     onPrimary = BlancoTexto,
-    primaryContainer = AzulClaro,
-    onPrimaryContainer = AzulTexto,
-    secondary = NaranjaAcento,
+    primaryContainer = VerdeClaro,
+    onPrimaryContainer = VerdeTexto,
+    secondary = GrisAcento,
     onSecondary = BlancoTexto,
-    secondaryContainer = NaranjaClaro,
+    secondaryContainer = GrisAcentoClaro,
+    onSecondaryContainer = VerdeTexto,
     error = RojoError,
     onError = BlancoTexto,
     errorContainer = RojoErrorClaro,
     onErrorContainer = RojoError,
-    background = GrisFondo,
+    background = BlancoFondo,
     onBackground = NegroTexto,
-    surface = GrisFondo,
+    surface = BlancoFondo,
     onSurface = NegroTexto,
-    surfaceVariant = GrisSuperficie
+    surfaceVariant = GrisSuperficie,
+    onSurfaceVariant = GrisAcento,
+    // Sin estos, Material rellena con su paleta base morada y las tarjetas
+    // salen gris lavanda en vez de blancas
+    surfaceContainerLowest = BlancoFondo,
+    surfaceContainerLow = BlancoFondo,
+    surfaceContainer = BlancoFondo,
+    surfaceContainerHigh = BlancoFondo,
+    surfaceContainerHighest = BlancoFondo,
+    surfaceTint = VerdeBoton,
+    inverseSurface = NegroTexto,
+    inverseOnSurface = BlancoFondo,
+    outline = GrisAcento,
+    outlineVariant = GrisAcentoClaro,
+    scrim = NegroTexto
 )
 
-private val EsquemaOscuro = darkColorScheme(
-    primary = AzulOscuro,
-    onPrimary = AzulProfundo,
-    primaryContainer = AzulContenedor,
-    onPrimaryContainer = AzulClaro,
-    secondary = NaranjaClaro,
-    onSecondary = NaranjaAcento,
-    error = RojoErrorClaro,
-    onError = RojoError,
-    background = NegroTexto,
-    onBackground = BlancoTexto,
-    surface = NegroTexto,
-    onSurface = BlancoTexto
-)
-
+/**
+ * La app usa siempre el esquema claro: el blanco es el color principal y no debe
+ * cambiar porque el telefono este en modo oscuro. El unico fondo oscuro es el del
+ * login, que lo pone su propia imagen.
+ */
 @Composable
 fun ServicioTecnicoTheme(
-    enOscuro: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = if (enOscuro) EsquemaOscuro else EsquemaClaro,
+        colorScheme = EsquemaClaro,
         typography = Tipografia,
+        shapes = Formas,
         content = content
     )
 }
