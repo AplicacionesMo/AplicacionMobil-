@@ -21,9 +21,12 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,6 +36,12 @@ class TicketControllerTest {
 
     @Autowired private MockMvc mvc;
     @MockBean private TicketService service;
+
+    private static final String CUERPO_TICKET = """
+            {"titulo":"No enfria","descripcion":"El equipo no enfria la sala",
+             "cliente":"Banco Uno","direccion":"Av. Siempre Viva 123","prioridad":"ALTA",
+             "equipo":{"nombre":"Split","modelo":"LG","serie":"ABC123","propiedad":"ARRENDADO"}}
+            """;
 
     private TicketResponse respuesta() {
         return new TicketResponse("t-1", 1, "No enfria", "El equipo no enfria", "Banco Uno",
@@ -110,5 +119,72 @@ class TicketControllerTest {
     void eliminarComoCoordinadorResponde204() throws Exception {
         mvc.perform(delete("/api/v1/tickets/t-1").header("X-Rol", "COORDINADOR"))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void obtenerDevuelveElTicket() throws Exception {
+        when(service.obtener("t-1", "TECNICO", null)).thenReturn(respuesta());
+
+        mvc.perform(get("/api/v1/tickets/t-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.titulo").value("No enfria"))
+                .andExpect(jsonPath("$.tecnicoNombre").value("Tecnico de Prueba"));
+    }
+
+    /** El tecnico que no tiene el ticket asignado recibe 403, no el contenido. */
+    @Test
+    void obtenerTicketAjenoResponde403() throws Exception {
+        when(service.obtener("t-1", "TECNICO", 99L))
+                .thenThrow(new ApiException(HttpStatus.FORBIDDEN, "Este ticket esta asignado a otro tecnico"));
+
+        mvc.perform(get("/api/v1/tickets/t-1")
+                        .header("X-Rol", "TECNICO")
+                        .header("X-Usuario-Id", "99"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.mensaje").value("Este ticket esta asignado a otro tecnico"));
+    }
+
+    @Test
+    void listarComoTecnicoPasaSuIdAlServicio() throws Exception {
+        when(service.listar(null, "TECNICO", 7L)).thenReturn(List.of(respuesta()));
+
+        mvc.perform(get("/api/v1/tickets")
+                        .header("X-Rol", "TECNICO")
+                        .header("X-Usuario-Id", "7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].numero").value(1));
+
+        verify(service).listar(null, "TECNICO", 7L);
+    }
+
+    @Test
+    void actualizarDevuelveElTicketEditado() throws Exception {
+        when(service.actualizar(eq("t-1"), any(), eq("COORDINADOR"), any())).thenReturn(respuesta());
+
+        mvc.perform(put("/api/v1/tickets/t-1")
+                        .header("X-Rol", "COORDINADOR")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CUERPO_TICKET))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cliente").value("Banco Uno"));
+    }
+
+    @Test
+    void cambiarEstadoDevuelveElTicketActualizado() throws Exception {
+        when(service.cambiarEstado(eq("t-1"), any(), eq("TECNICO"), any())).thenReturn(respuesta());
+
+        mvc.perform(patch("/api/v1/tickets/t-1/estado")
+                        .header("X-Rol", "TECNICO")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estadoNuevo\":\"TRANSITO\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void historialDevuelveLosCambios() throws Exception {
+        when(service.historial("t-1")).thenReturn(List.of());
+
+        mvc.perform(get("/api/v1/tickets/t-1/historial"))
+                .andExpect(status().isOk());
     }
 }

@@ -3,6 +3,7 @@ package cl.duoc.serviciotecnico.viewmodel
 import androidx.lifecycle.SavedStateHandle
 
 import cl.duoc.serviciotecnico.data.repository.EquipoRepository
+import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.data.repository.UsuarioRepository
 import cl.duoc.serviciotecnico.domain.model.DatosTicket
@@ -22,8 +23,10 @@ import io.mockk.slot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
+import java.io.IOException
 import org.junit.Test
 
 class FormularioTicketViewModelTest {
@@ -150,5 +153,123 @@ class FormularioTicketViewModelTest {
         val vm = FormularioTicketViewModel("x", SavedStateHandle(), tickets, equipos, usuarios, Rol.TECNICO)
 
         assertEquals("No se encontro el ticket", vm.estado.value.mensaje)
+    }
+
+    // ---------- Asignacion de tecnico ----------
+
+    @Test
+    fun `el selector solo ofrece tecnicos activos`() {
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, usuarios, Rol.COORDINADOR)
+
+        val ofrecidos = vm.estado.value.tecnicosDisponibles
+        assertEquals(1, ofrecidos.size)
+        assertEquals("Tecnico de Prueba", ofrecidos.first().nombre)
+        assertFalse(vm.estado.value.cargandoTecnicos)
+    }
+
+    @Test
+    fun `elegir un tecnico lo deja asignado y se puede cambiar`() {
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, usuarios, Rol.COORDINADOR)
+        val tecnico = Usuario(1L, "Tecnico de Prueba", "tecnico@tacticaldev.cl", Rol.TECNICO, true)
+        val otro = Usuario(9L, "Segundo Tecnico", "otro@tacticaldev.cl", Rol.TECNICO, true)
+
+        vm.seleccionarTecnico(tecnico)
+        assertEquals(1L, vm.estado.value.tecnicoId)
+        assertEquals("Tecnico de Prueba", vm.estado.value.tecnicoElegido)
+
+        // Volver a tocar el campo permite cambiar de tecnico
+        vm.seleccionarTecnico(otro)
+        assertEquals(9L, vm.estado.value.tecnicoId)
+        assertEquals("Segundo Tecnico", vm.estado.value.tecnicoElegido)
+    }
+
+    @Test
+    fun `el ticket puede quedar sin asignar`() {
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, usuarios, Rol.COORDINADOR)
+        vm.seleccionarTecnico(Usuario(1L, "Tecnico de Prueba", "tecnico@tacticaldev.cl", Rol.TECNICO, true))
+
+        vm.quitarTecnico()
+
+        assertNull(vm.estado.value.tecnicoId)
+        assertEquals("Sin asignar", vm.estado.value.tecnicoElegido)
+    }
+
+    @Test
+    fun `el tecnico asignado viaja al microservicio`() {
+        val enviado = slot<DatosTicket>()
+        coEvery { tickets.crear(capture(enviado), Rol.COORDINADOR) } returns Datos.ticket()
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, usuarios, Rol.COORDINADOR)
+        llenar(vm)
+        vm.seleccionarTecnico(Usuario(1L, "Tecnico de Prueba", "tecnico@tacticaldev.cl", Rol.TECNICO, true))
+
+        vm.guardar()
+
+        assertEquals(1L, enviado.captured.tecnicoId)
+        assertEquals("Tecnico de Prueba", enviado.captured.tecnicoNombre)
+    }
+
+    @Test
+    fun `si ms-usuarios no responde se avisa y el formulario sigue usable`() {
+        val caidos: UsuarioRepository = mockk {
+            coEvery { listar() } throws IOException("sin red")
+        }
+        val vm = FormularioTicketViewModel(null, SavedStateHandle(), tickets, equipos, caidos, Rol.COORDINADOR)
+
+        assertTrue(vm.estado.value.tecnicosDisponibles.isEmpty())
+        assertFalse(vm.estado.value.cargandoTecnicos)
+        assertEquals(ErrorDeRed.SIN_CONEXION, vm.estado.value.mensaje)
+
+        vm.mensajeMostrado()
+        assertNull(vm.estado.value.mensaje)
+    }
+
+    // ---------- Borrador que sobrevive a que Android mate el proceso ----------
+
+    @Test
+    fun `lo escrito en el ticket sobrevive a que Android mate el proceso`() {
+        val respaldo = SavedStateHandle()
+        val primero = FormularioTicketViewModel(null, respaldo, tickets, equipos, usuarios, Rol.COORDINADOR)
+        llenar(primero)
+        primero.seleccionarTecnico(Usuario(1L, "Tecnico de Prueba", "tecnico@tacticaldev.cl", Rol.TECNICO, true))
+
+        // Mismo respaldo, ViewModel nuevo: es lo que pasa al volver de otra app
+        val revivido = FormularioTicketViewModel(null, respaldo, tickets, equipos, usuarios, Rol.COORDINADOR)
+
+        val estado = revivido.estado.value
+        assertEquals("Equipo no enfria", estado.titulo)
+        assertEquals("Banco Uno", estado.cliente)
+        assertEquals("ABC123", estado.serie)
+        assertEquals(Prioridad.ALTA, estado.prioridad)
+        assertEquals(Propiedad.ARRENDADO, estado.propiedad)
+        assertEquals("Tecnico de Prueba", estado.tecnicoNombre)
+        assertTrue(estado.formularioValido)
+    }
+
+    @Test
+    fun `al editar, el borrador manda sobre lo que trae el ticket`() {
+        coEvery { tickets.obtenerTicket("t-1") } returns Datos.ticket()
+        coEvery { equipos.obtenerEquipo("eq-1") } returns Datos.equipo
+        val respaldo = SavedStateHandle()
+        val primero = FormularioTicketViewModel("t-1", respaldo, tickets, equipos, usuarios, Rol.COORDINADOR)
+        primero.cambiarCampo(CampoTicket.TITULO, "Titulo a medio escribir")
+
+        val revivido = FormularioTicketViewModel("t-1", respaldo, tickets, equipos, usuarios, Rol.COORDINADOR)
+
+        assertEquals("Titulo a medio escribir", revivido.estado.value.titulo)
+        // Lo que no es borrador igual se toma del ticket
+        assertEquals(1, revivido.estado.value.numero)
+    }
+
+    @Test
+    fun `al guardar con exito el borrador se descarta`() {
+        val respaldo = SavedStateHandle()
+        coEvery { tickets.crear(any(), Rol.COORDINADOR) } returns Datos.ticket()
+        val vm = FormularioTicketViewModel(null, respaldo, tickets, equipos, usuarios, Rol.COORDINADOR)
+        llenar(vm)
+
+        vm.guardar()
+
+        val nuevo = FormularioTicketViewModel(null, respaldo, tickets, equipos, usuarios, Rol.COORDINADOR)
+        assertEquals("", nuevo.estado.value.titulo)
     }
 }
