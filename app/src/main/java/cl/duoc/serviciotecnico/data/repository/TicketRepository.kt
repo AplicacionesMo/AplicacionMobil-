@@ -28,8 +28,14 @@ class TicketRepository(
     private val ticketDao: TicketDao,
     private val equipoDao: EquipoDao,
     private val guiaDao: GuiaDao,
-    private val cambioEstadoDao: CambioEstadoDao
+    private val cambioEstadoDao: CambioEstadoDao,
+    private val sesion: SesionRepository
 ) {
+    /** Quien pregunta: el servidor lo usa para decidir que tickets devuelve. */
+    private fun rolActual(): String = sesion.rolActual().name
+
+    private fun usuarioActualId(): Long = sesion.usuarioActual()?.id ?: 0L
+
     // ---------- Lectura (cache local) ----------
 
     fun observarTickets(): Flow<List<Ticket>> = ticketDao.observarTodos()
@@ -48,7 +54,7 @@ class TicketRepository(
 
     /** Descarga todos los tickets y deja la cache igual al servidor. */
     suspend fun sincronizar() {
-        val remotos = api.listar()
+        val remotos = api.listar(rol = rolActual(), usuarioId = usuarioActualId())
         remotos.forEach { guardarEnCache(it) }
         val ids = remotos.mapNotNull { it.id }
         if (ids.isEmpty()) ticketDao.eliminarTodos() else ticketDao.eliminarExcepto(ids)
@@ -57,10 +63,11 @@ class TicketRepository(
     /** Refresca un ticket y su historial. Si el servidor ya no lo tiene (404), se borra local. */
     suspend fun sincronizarTicket(id: String) {
         try {
-            guardarEnCache(api.obtener(id))
+            guardarEnCache(api.obtener(id, rol = rolActual(), usuarioId = usuarioActualId()))
             sincronizarHistorial(id)
         } catch (e: HttpException) {
-            if (e.code() == 404) ticketDao.eliminarPorId(id) else throw e
+            // 404: ya no existe. 403: se lo reasignaron a otro tecnico. En ambos casos sale de la cache
+            if (e.code() == 404 || e.code() == 403) ticketDao.eliminarPorId(id) else throw e
         }
     }
 
@@ -78,7 +85,12 @@ class TicketRepository(
     }
 
     suspend fun actualizar(id: String, datos: DatosTicket): Ticket {
-        val respuesta = api.actualizar(id, datos.aRequest())
+        val respuesta = api.actualizar(
+            id = id,
+            request = datos.aRequest(),
+            rol = rolActual(),
+            usuarioId = usuarioActualId()
+        )
         return guardarEnCache(respuesta)
     }
 
@@ -105,7 +117,8 @@ class TicketRepository(
                 latitud = latitud,
                 longitud = longitud
             ),
-            rol = rol.name
+            rol = rol.name,
+            usuarioId = usuarioActualId()
         )
         val ticket = guardarEnCache(respuesta)
         sincronizarHistorial(ticketId)

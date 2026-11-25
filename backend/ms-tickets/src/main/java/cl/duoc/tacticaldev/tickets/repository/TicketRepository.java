@@ -13,6 +13,11 @@ public interface TicketRepository extends JpaRepository<Ticket, String> {
 
     List<Ticket> findByEstadoOrderByNumeroDesc(EstadoTicket estado);
 
+    /** Un tecnico solo ve los tickets que le asignaron. */
+    List<Ticket> findByTecnicoIdOrderByNumeroDesc(Long tecnicoId);
+
+    List<Ticket> findByTecnicoIdAndEstadoOrderByNumeroDesc(Long tecnicoId, EstadoTicket estado);
+
     /** Para el numero correlativo: el mayor numero usado, o 0 si no hay tickets. */
     @Query("select coalesce(max(t.numero), 0) from Ticket t")
     int ultimoNumero();

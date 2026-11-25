@@ -67,6 +67,9 @@ class TicketServiceTest {
         t.setPrioridad(Prioridad.ALTA);
         t.setEstado(estado);
         t.setEquipo(equipo);
+        // Asignado al tecnico 7: es el que usan las pruebas que actuan como TECNICO
+        t.setTecnicoId(7L);
+        t.setTecnicoNombre("Tecnico de Prueba");
         return t;
     }
 
@@ -116,7 +119,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "ADMIN");
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "ADMIN", 7L);
 
         assertEquals(EstadoTicket.CANCELADO, r.estado());
     }
@@ -125,7 +128,7 @@ class TicketServiceTest {
     void actualizarTicketFinalizadoLanza409() {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.FINALIZADO)));
 
-        ApiException e = assertThrows(ApiException.class, () -> service.actualizar("t-1", request()));
+        ApiException e = assertThrows(ApiException.class, () -> service.actualizar("t-1", request(), "COORDINADOR", null));
 
         assertEquals(HttpStatus.CONFLICT, e.getEstado());
         verify(ticketRepository, never()).save(any());
@@ -137,7 +140,7 @@ class TicketServiceTest {
         when(equipoService.obtenerOCrear(any())).thenReturn(equipo);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.actualizar("t-1", request());
+        TicketResponse r = service.actualizar("t-1", request(), "COORDINADOR", null);
 
         assertEquals("Banco Uno", r.cliente());
     }
@@ -148,7 +151,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(t));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.TRANSITO), "TECNICO");
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.TRANSITO), "TECNICO", 7L);
 
         assertEquals(EstadoTicket.TRANSITO, r.estado());
         assertEquals(1, t.getHistorial().size());
@@ -162,7 +165,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
 
         ApiException e = assertThrows(ApiException.class,
-                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.ABIERTO), "TECNICO"));
+                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.ABIERTO), "TECNICO", 7L));
 
         assertEquals(HttpStatus.BAD_REQUEST, e.getEstado());
     }
@@ -173,7 +176,7 @@ class TicketServiceTest {
         when(guiasClient.contarGuiasDeTicket("t-1")).thenReturn(0L);
 
         ApiException e = assertThrows(ApiException.class,
-                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.FINALIZADO), "TECNICO"));
+                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.FINALIZADO), "TECNICO", 7L));
 
         assertEquals(HttpStatus.CONFLICT, e.getEstado());
     }
@@ -185,7 +188,7 @@ class TicketServiceTest {
         when(guiasClient.contarGuiasDeTicket("t-1")).thenReturn(1L);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.FINALIZADO), "TECNICO");
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.FINALIZADO), "TECNICO", 7L);
 
         assertEquals(EstadoTicket.FINALIZADO, r.estado());
         assertEquals("Comentario de prueba", r.solucion());
@@ -197,7 +200,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
 
         ApiException e = assertThrows(ApiException.class,
-                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "TECNICO"));
+                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "TECNICO", 7L));
 
         assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
     }
@@ -207,7 +210,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "COORDINADOR");
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "COORDINADOR", 7L);
 
         assertEquals(EstadoTicket.CANCELADO, r.estado());
         assertEquals("Comentario de prueba", r.motivoCancelacion());
@@ -248,7 +251,7 @@ class TicketServiceTest {
     void obtenerInexistenteLanza404() {
         when(ticketRepository.findById("x")).thenReturn(Optional.empty());
 
-        ApiException e = assertThrows(ApiException.class, () -> service.obtener("x"));
+        ApiException e = assertThrows(ApiException.class, () -> service.obtener("x", "COORDINADOR", null));
 
         assertEquals(HttpStatus.NOT_FOUND, e.getEstado());
     }
@@ -258,7 +261,7 @@ class TicketServiceTest {
         when(ticketRepository.findByEstadoOrderByNumeroDesc(EstadoTicket.ABIERTO))
                 .thenReturn(List.of(ticket(EstadoTicket.ABIERTO)));
 
-        assertEquals(1, service.listar(EstadoTicket.ABIERTO).size());
+        assertEquals(1, service.listar(EstadoTicket.ABIERTO, "COORDINADOR", null).size());
         verify(ticketRepository, never()).findAllByOrderByNumeroDesc();
     }
 
@@ -278,7 +281,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "COORDINADOR");
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "COORDINADOR", 7L);
 
         assertEquals(EstadoTicket.CANCELADO, r.estado());
         verify(guiasClient, never()).contarGuiasDeTicket(any());
@@ -289,7 +292,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.cambiarEstado("t-1", cambio(EstadoTicket.TRANSITO), "TECNICO");
+        service.cambiarEstado("t-1", cambio(EstadoTicket.TRANSITO), "TECNICO", 7L);
 
         verify(guiasClient, never()).contarGuiasDeTicket(any());
     }
@@ -304,7 +307,7 @@ class TicketServiceTest {
         TicketResponse r = service.cambiarEstado(
                 "t-1",
                 new CambioEstadoRequest(EstadoTicket.FINALIZADO, null, List.of(), null, null),
-                "TECNICO");
+                "TECNICO", 7L);
 
         assertEquals("Cambio de estado a Finalizado", r.solucion());
         assertEquals("Cambio de estado a Finalizado", t.getHistorial().get(0).getComentario());
@@ -337,5 +340,48 @@ class TicketServiceTest {
 
         assertNull(r.tecnicoId());
         assertNull(r.tecnicoNombre());
+    }
+
+    @Test
+    void elTecnicoSoloVeLosTicketsQueLeAsignaron() {
+        when(ticketRepository.findByTecnicoIdOrderByNumeroDesc(7L))
+                .thenReturn(List.of(ticket(EstadoTicket.ABIERTO)));
+
+        assertEquals(1, service.listar(null, "TECNICO", 7L).size());
+        verify(ticketRepository, never()).findAllByOrderByNumeroDesc();
+    }
+
+    @Test
+    void elTecnicoSinIdentificarNoVeNada() {
+        assertEquals(0, service.listar(null, "TECNICO", null).size());
+        verify(ticketRepository, never()).findAllByOrderByNumeroDesc();
+    }
+
+    @Test
+    void elTecnicoNoEntraAlTicketDeOtro() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
+
+        ApiException e = assertThrows(ApiException.class,
+                () -> service.obtener("t-1", "TECNICO", 99L));
+
+        assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
+    }
+
+    @Test
+    void elCoordinadorEntraAlTicketDeCualquiera() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
+
+        assertEquals("t-1", service.obtener("t-1", "COORDINADOR", null).id());
+    }
+
+    @Test
+    void elTecnicoNoCambiaElEstadoDeUnTicketAjeno() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
+
+        ApiException e = assertThrows(ApiException.class,
+                () -> service.cambiarEstado("t-1", cambio(EstadoTicket.TRANSITO), "TECNICO", 99L));
+
+        assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
+        verify(ticketRepository, never()).save(any());
     }
 }

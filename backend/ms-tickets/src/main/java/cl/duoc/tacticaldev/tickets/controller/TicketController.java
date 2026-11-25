@@ -37,14 +37,19 @@ public class TicketController {
         this.service = service;
     }
 
+    /** X-Usuario-Id identifica al tecnico: solo recibe los tickets que le asignaron. */
     @GetMapping
-    public List<TicketResponse> listar(@RequestParam(required = false) EstadoTicket estado) {
-        return service.listar(estado);
+    public List<TicketResponse> listar(@RequestParam(required = false) EstadoTicket estado,
+                                       @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol,
+                                       @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId) {
+        return service.listar(estado, rol, usuarioId);
     }
 
     @GetMapping("/{id}")
-    public TicketResponse obtener(@PathVariable String id) {
-        return service.obtener(id);
+    public TicketResponse obtener(@PathVariable String id,
+                                  @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol,
+                                  @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId) {
+        return service.obtener(id, rol, usuarioId);
     }
 
     @PostMapping
@@ -55,15 +60,18 @@ public class TicketController {
     }
 
     @PutMapping("/{id}")
-    public TicketResponse actualizar(@PathVariable String id, @Valid @RequestBody TicketRequest request) {
-        return service.actualizar(id, request);
+    public TicketResponse actualizar(@PathVariable String id, @Valid @RequestBody TicketRequest request,
+                                     @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol,
+                                     @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId) {
+        return service.actualizar(id, request, rol, usuarioId);
     }
 
     @PatchMapping("/{id}/estado")
     public TicketResponse cambiarEstado(@PathVariable String id,
                                         @Valid @RequestBody CambioEstadoRequest request,
-                                        @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol) {
-        return service.cambiarEstado(id, request, rol);
+                                        @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol,
+                                        @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioId) {
+        return service.cambiarEstado(id, request, rol, usuarioId);
     }
 
     @DeleteMapping("/{id}")

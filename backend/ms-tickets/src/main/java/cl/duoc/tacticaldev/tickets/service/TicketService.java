@@ -40,17 +40,34 @@ public class TicketService {
         this.guiasClient = guiasClient;
     }
 
+    /**
+     * El coordinador y el administrador ven todos los tickets.
+     * El tecnico ve unicamente los que le asignaron: los que no son suyos, ni siquiera
+     * los que estan sin asignar, no salen en la lista.
+     */
     @Transactional(readOnly = true)
-    public List<TicketResponse> listar(EstadoTicket estado) {
-        List<Ticket> tickets = estado == null
-                ? ticketRepository.findAllByOrderByNumeroDesc()
-                : ticketRepository.findByEstadoOrderByNumeroDesc(estado);
+    public List<TicketResponse> listar(EstadoTicket estado, String rol, Long usuarioId) {
+        List<Ticket> tickets;
+        if (esGestor(rol)) {
+            tickets = estado == null
+                    ? ticketRepository.findAllByOrderByNumeroDesc()
+                    : ticketRepository.findByEstadoOrderByNumeroDesc(estado);
+        } else if (usuarioId == null) {
+            // Sin identificar no se muestra nada: es preferible una lista vacia a filtrar mal
+            tickets = List.of();
+        } else {
+            tickets = estado == null
+                    ? ticketRepository.findByTecnicoIdOrderByNumeroDesc(usuarioId)
+                    : ticketRepository.findByTecnicoIdAndEstadoOrderByNumeroDesc(usuarioId, estado);
+        }
         return tickets.stream().map(TicketResponse::desde).toList();
     }
 
     @Transactional(readOnly = true)
-    public TicketResponse obtener(String id) {
-        return TicketResponse.desde(buscar(id));
+    public TicketResponse obtener(String id, String rol, Long usuarioId) {
+        Ticket ticket = buscar(id);
+        exigirAcceso(ticket, rol, usuarioId);
+        return TicketResponse.desde(ticket);
     }
 
     /** El tecnico no crea tickets: los crea el coordinador o el administrador. */
@@ -68,8 +85,9 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponse actualizar(String id, TicketRequest request) {
+    public TicketResponse actualizar(String id, TicketRequest request, String rol, Long usuarioId) {
         Ticket ticket = buscar(id);
+        exigirAcceso(ticket, rol, usuarioId);
         exigirEditable(ticket);
         copiarDatos(request, ticket);
         return TicketResponse.desde(ticketRepository.save(ticket));
@@ -82,8 +100,9 @@ public class TicketService {
      * Abierto, Transito y Cancelado se alcanzan sin guia.
      */
     @Transactional
-    public TicketResponse cambiarEstado(String id, CambioEstadoRequest request, String rol) {
+    public TicketResponse cambiarEstado(String id, CambioEstadoRequest request, String rol, Long usuarioId) {
         Ticket ticket = buscar(id);
+        exigirAcceso(ticket, rol, usuarioId);
         exigirEditable(ticket);
         EstadoTicket nuevo = request.estadoNuevo();
 
@@ -152,6 +171,16 @@ public class TicketService {
             case FINALIZADO -> "Finalizado";
             case CANCELADO -> "Cancelado";
         };
+    }
+
+    /**
+     * Un tecnico solo entra a los tickets que le asignaron.
+     * El coordinador y el administrador entran a todos.
+     */
+    private void exigirAcceso(Ticket ticket, String rol, Long usuarioId) {
+        if (esGestor(rol)) return;
+        if (usuarioId != null && usuarioId.equals(ticket.getTecnicoId())) return;
+        throw new ApiException(HttpStatus.FORBIDDEN, "Este ticket esta asignado a otro tecnico");
     }
 
     /** Coordinador y administrador gestionan tickets; el tecnico solo trabaja en ellos. */

@@ -20,24 +20,38 @@ import retrofit2.http.Path
  */
 interface TicketsApi {
 
+    /** El servidor filtra: el tecnico solo recibe los tickets que le asignaron. */
     @GET("api/v1/tickets")
-    suspend fun listar(): List<TicketDto>
+    suspend fun listar(
+        @Header("X-Rol") rol: String,
+        @Header("X-Usuario-Id") usuarioId: Long
+    ): List<TicketDto>
 
     @GET("api/v1/tickets/{id}")
-    suspend fun obtener(@Path("id") id: String): TicketDto
+    suspend fun obtener(
+        @Path("id") id: String,
+        @Header("X-Rol") rol: String,
+        @Header("X-Usuario-Id") usuarioId: Long
+    ): TicketDto
 
     /** Solo coordinador o administrador: el servidor revisa el header X-Rol. */
     @POST("api/v1/tickets")
     suspend fun crear(@Body request: TicketRequestDto, @Header("X-Rol") rol: String): TicketDto
 
     @PUT("api/v1/tickets/{id}")
-    suspend fun actualizar(@Path("id") id: String, @Body request: TicketRequestDto): TicketDto
+    suspend fun actualizar(
+        @Path("id") id: String,
+        @Body request: TicketRequestDto,
+        @Header("X-Rol") rol: String,
+        @Header("X-Usuario-Id") usuarioId: Long
+    ): TicketDto
 
     @PATCH("api/v1/tickets/{id}/estado")
     suspend fun cambiarEstado(
         @Path("id") id: String,
         @Body request: CambioEstadoRequestDto,
-        @Header("X-Rol") rol: String
+        @Header("X-Rol") rol: String,
+        @Header("X-Usuario-Id") usuarioId: Long
     ): TicketDto
 
     /** 204 No Content: se usa Response para revisar el codigo sin esperar cuerpo. */

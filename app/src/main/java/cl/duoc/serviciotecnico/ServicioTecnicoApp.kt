@@ -24,7 +24,8 @@ class ServicioTecnicoApp : Application() {
             ticketDao = baseDeDatos.ticketDao(),
             equipoDao = baseDeDatos.equipoDao(),
             guiaDao = baseDeDatos.guiaDao(),
-            cambioEstadoDao = baseDeDatos.cambioEstadoDao()
+            cambioEstadoDao = baseDeDatos.cambioEstadoDao(),
+            sesion = sesionRepository
         )
     }
 

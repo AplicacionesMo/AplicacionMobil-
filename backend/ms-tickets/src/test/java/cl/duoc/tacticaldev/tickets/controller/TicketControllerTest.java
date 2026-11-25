@@ -43,7 +43,7 @@ class TicketControllerTest {
 
     @Test
     void listarDevuelveLosTickets() throws Exception {
-        when(service.listar(null)).thenReturn(List.of(respuesta()));
+        when(service.listar(null, "TECNICO", null)).thenReturn(List.of(respuesta()));
 
         mvc.perform(get("/api/v1/tickets"))
                 .andExpect(status().isOk())

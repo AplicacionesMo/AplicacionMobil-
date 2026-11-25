@@ -6,14 +6,17 @@ import cl.duoc.serviciotecnico.data.local.dao.GuiaDao
 import cl.duoc.serviciotecnico.data.local.dao.TicketDao
 import cl.duoc.serviciotecnico.data.remote.api.TicketsApi
 import cl.duoc.serviciotecnico.data.remote.dto.CambioEstadoRequestDto
+import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.DatosTicket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.domain.model.Prioridad
 import cl.duoc.serviciotecnico.domain.model.Propiedad
+import cl.duoc.serviciotecnico.domain.model.UsuarioSesion
 import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.util.Datos
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
@@ -56,7 +59,11 @@ class TicketRepositoryTest {
         equipoDao = mockk(relaxed = true)
         guiaDao = mockk(relaxed = true)
         cambioEstadoDao = mockk(relaxed = true)
-        repository = TicketRepository(api, ticketDao, equipoDao, guiaDao, cambioEstadoDao)
+        val sesion: SesionRepository = mockk {
+            every { rolActual() } returns Rol.COORDINADOR
+            every { usuarioActual() } returns UsuarioSesion(2L, "Coord", "c@t.cl", Rol.COORDINADOR)
+        }
+        repository = TicketRepository(api, ticketDao, equipoDao, guiaDao, cambioEstadoDao, sesion)
     }
 
     @Test
@@ -75,17 +82,17 @@ class TicketRepositoryTest {
 
     @Test
     fun `actualizar usa PUT con el id del ticket`() = runTest {
-        coEvery { api.actualizar("t-1", any()) } returns Datos.ticketDto()
+        coEvery { api.actualizar("t-1", any(), any(), any()) } returns Datos.ticketDto()
 
         repository.actualizar("t-1", datos)
 
-        coVerify { api.actualizar("t-1", any()) }
+        coVerify { api.actualizar("t-1", any(), any(), any()) }
         coVerify { ticketDao.upsert(any()) }
     }
 
     @Test
     fun `sincronizar deja la cache igual al servidor`() = runTest {
-        coEvery { api.listar() } returns listOf(Datos.ticketDto(id = "t-1"), Datos.ticketDto(id = "t-2"))
+        coEvery { api.listar(any(), any()) } returns listOf(Datos.ticketDto(id = "t-1"), Datos.ticketDto(id = "t-2"))
 
         repository.sincronizar()
 
@@ -95,7 +102,7 @@ class TicketRepositoryTest {
 
     @Test
     fun `sincronizar con servidor vacio limpia la cache`() = runTest {
-        coEvery { api.listar() } returns emptyList()
+        coEvery { api.listar(any(), any()) } returns emptyList()
 
         repository.sincronizar()
 
@@ -104,7 +111,7 @@ class TicketRepositoryTest {
 
     @Test
     fun `si el servidor responde 404 el ticket se borra de la cache`() = runTest {
-        coEvery { api.obtener("t-1") } throws Datos.errorHttp(404, "Ticket no encontrado")
+        coEvery { api.obtener("t-1", any(), any()) } throws Datos.errorHttp(404, "Ticket no encontrado")
 
         repository.sincronizarTicket("t-1")
 
@@ -113,7 +120,7 @@ class TicketRepositoryTest {
 
     @Test(expected = HttpException::class)
     fun `otros errores del servidor se propagan`() = runTest {
-        coEvery { api.obtener("t-1") } throws Datos.errorHttp(500)
+        coEvery { api.obtener("t-1", any(), any()) } throws Datos.errorHttp(500)
 
         repository.sincronizarTicket("t-1")
     }
@@ -121,7 +128,7 @@ class TicketRepositoryTest {
     @Test
     fun `cambio de estado envia el rol en el header y refresca el historial`() = runTest {
         val peticion = slot<CambioEstadoRequestDto>()
-        coEvery { api.cambiarEstado("t-1", capture(peticion), "COORDINADOR") } returns Datos.ticketDto("CANCELADO")
+        coEvery { api.cambiarEstado("t-1", capture(peticion), "COORDINADOR", any()) } returns Datos.ticketDto("CANCELADO")
         coEvery { api.historial("t-1") } returns emptyList()
 
         val ticket = repository.registrarCambioDeEstado(
