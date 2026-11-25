@@ -166,6 +166,8 @@ public class TicketService {
         ticket.setDireccion(request.direccion().trim());
         ticket.setPrioridad(request.prioridad());
         ticket.setEquipo(equipoService.obtenerOCrear(request.equipo()));
+        ticket.setTecnicoId(request.tecnicoId());
+        ticket.setTecnicoNombre(request.tecnicoNombre() == null ? null : request.tecnicoNombre().trim());
     }
 
     private void exigirEditable(Ticket ticket) {

@@ -33,7 +33,12 @@ class ServicioTecnicoApp : Application() {
     }
 
     val guiaRepository by lazy {
-        GuiaRepository(RetrofitService.guiasApi, baseDeDatos.guiaDao(), baseDeDatos.fotoGuiaDao())
+        GuiaRepository(
+            RetrofitService.guiasApi,
+            baseDeDatos.guiaDao(),
+            baseDeDatos.fotoGuiaDao(),
+            sesionRepository
+        )
     }
 
     val sesionRepository by lazy {

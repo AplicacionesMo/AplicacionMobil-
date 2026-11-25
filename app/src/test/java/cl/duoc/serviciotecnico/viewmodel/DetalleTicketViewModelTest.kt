@@ -98,10 +98,11 @@ class DetalleTicketViewModelTest {
     }
 
     @Test
-    fun `cancelar no exige guia`() = runTest {
+    fun `cancelar no exige guia pero si motivo`() = runTest {
         coEvery { tickets.tieneGuiasEmitidas("t-1") } returns false
         val vm = crearVm(Rol.COORDINADOR)
-        vm.llenarCambio(EstadoTicket.CANCELADO)
+        vm.seleccionarEstado(EstadoTicket.CANCELADO)
+        vm.cambiarMotivo("El cliente desistio del servicio")
 
         vm.enviarCambioDeEstado()
 
@@ -109,9 +110,43 @@ class DetalleTicketViewModelTest {
             tickets.registrarCambioDeEstado(
                 ticketId = "t-1",
                 nuevoEstado = EstadoTicket.CANCELADO,
-                rol = Rol.COORDINADOR
+                rol = Rol.COORDINADOR,
+                comentario = "El cliente desistio del servicio"
             )
         }
+    }
+
+    @Test
+    fun `el motivo solo se pide al cancelar`() = runTest {
+        val vm = crearVm(Rol.COORDINADOR)
+
+        vm.seleccionarEstado(EstadoTicket.CANCELADO)
+        assertTrue(vm.estado.value.formulario.pideMotivo)
+
+        vm.seleccionarEstado(EstadoTicket.ABIERTO)
+        assertFalse(vm.estado.value.formulario.pideMotivo)
+    }
+
+    @Test
+    fun `al salir de cancelado el motivo escrito se descarta`() = runTest {
+        val vm = crearVm(Rol.COORDINADOR)
+        vm.seleccionarEstado(EstadoTicket.CANCELADO)
+        vm.cambiarMotivo("El cliente desistio del servicio")
+
+        vm.seleccionarEstado(EstadoTicket.ABIERTO)
+
+        assertEquals("", vm.estado.value.formulario.motivo)
+    }
+
+    @Test
+    fun `cancelar sin motivo no se envia`() = runTest {
+        val vm = crearVm(Rol.COORDINADOR)
+        vm.seleccionarEstado(EstadoTicket.CANCELADO)
+
+        vm.enviarCambioDeEstado()
+
+        assertNotNull(vm.estado.value.formulario.errorMotivo)
+        coVerify(exactly = 0) { tickets.registrarCambioDeEstado(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -131,6 +166,22 @@ class DetalleTicketViewModelTest {
         }
         assertNull(vm.estado.value.formulario.estadoSeleccionado)
         assertEquals("Estado cambiado a Finalizado", vm.estado.value.mensaje)
+        // La pantalla se cierra sola al guardar
+        assertTrue(vm.estado.value.cambioAplicado)
+    }
+
+    @Test
+    fun `si el cambio falla la pantalla no se cierra`() = runTest {
+        coEvery { tickets.tieneGuiasEmitidas("t-1") } returns true
+        coEvery {
+            tickets.registrarCambioDeEstado(any(), any(), any(), any(), any(), any(), any())
+        } throws Datos.errorHttp(409, "La operacion no esta permitida")
+        val vm = crearVm()
+        vm.llenarCambio(EstadoTicket.FINALIZADO)
+
+        vm.enviarCambioDeEstado()
+
+        assertFalse(vm.estado.value.cambioAplicado)
     }
 
     @Test
@@ -140,7 +191,8 @@ class DetalleTicketViewModelTest {
         } throws Datos.errorHttp(403, "Solo el coordinador puede cancelar un ticket")
         val vm = crearVm()
         // El tecnico no deberia poder cancelar: quien lo rechaza es el servidor
-        vm.llenarCambio(EstadoTicket.CANCELADO)
+        vm.seleccionarEstado(EstadoTicket.CANCELADO)
+        vm.cambiarMotivo("El cliente desistio del servicio")
 
         vm.enviarCambioDeEstado()
 

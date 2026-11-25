@@ -83,4 +83,31 @@ class LoginViewModelTest {
 
         assertEquals(ErrorDeRed.SIN_CONEXION, vm.estado.value.mensaje)
     }
+
+    @Test
+    fun `tocar una cuenta de prueba reemplaza lo escrito y no inicia sesion`() {
+        val vm = vmCon("otro@correo.cl", "otraclave")
+        val tecnico = SesionRepository.CUENTAS_DE_PRUEBA.first { it.rol == Rol.TECNICO }
+
+        vm.usarCuentaDePrueba(tecnico)
+
+        assertEquals(SesionRepository.USUARIO_TECNICO, vm.estado.value.correo)
+        assertEquals(SesionRepository.CLAVE_TECNICO, vm.estado.value.clave)
+        // El usuario todavia tiene que apretar Ingresar
+        assertFalse(vm.estado.value.ingresado)
+        coVerify(exactly = 0) { sesion.iniciarSesion(any(), any()) }
+    }
+
+    @Test
+    fun `las tres cuentas de prueba quedan validas al tocarlas`() {
+        SesionRepository.CUENTAS_DE_PRUEBA.forEach { cuenta ->
+            val vm = LoginViewModel(sesion)
+
+            vm.usarCuentaDePrueba(cuenta)
+
+            assertTrue("${cuenta.rol} deberia quedar valida", vm.estado.value.formularioValido)
+            assertNull(vm.estado.value.errorVisible(CampoLogin.CORREO))
+            assertNull(vm.estado.value.errorVisible(CampoLogin.CLAVE))
+        }
+    }
 }

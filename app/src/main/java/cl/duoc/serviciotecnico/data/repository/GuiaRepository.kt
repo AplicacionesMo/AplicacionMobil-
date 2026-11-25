@@ -15,7 +15,8 @@ import kotlinx.coroutines.flow.Flow
 class GuiaRepository(
     private val api: GuiasApi,
     private val guiaDao: GuiaDao,
-    private val fotoGuiaDao: FotoGuiaDao
+    private val fotoGuiaDao: FotoGuiaDao,
+    private val sesion: SesionRepository
 ) {
     // ---------- Lectura (cache local) ----------
 
@@ -59,7 +60,7 @@ class GuiaRepository(
         urisDeFotos: List<String> = emptyList()
     ): Guia {
         val respuesta = api.crear(
-            GuiaRequestDto(
+            request = GuiaRequestDto(
                 ticketId = ticketId,
                 equipoId = equipoId,
                 direccion = direccion,
@@ -71,7 +72,8 @@ class GuiaRepository(
                 latitud = latitud,
                 longitud = longitud,
                 urisDeFotos = urisDeFotos
-            )
+            ),
+            rol = sesion.rolActual().name
         )
         return guardarEnCache(respuesta)
     }

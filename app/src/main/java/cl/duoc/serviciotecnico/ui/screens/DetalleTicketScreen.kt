@@ -61,6 +61,7 @@ import cl.duoc.serviciotecnico.data.local.entity.Guia
 import cl.duoc.serviciotecnico.data.local.entity.Ticket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.ui.components.BotonGuardar
+import cl.duoc.serviciotecnico.ui.components.CampoTextoValidado
 import cl.duoc.serviciotecnico.ui.components.EtiquetaEstado
 import cl.duoc.serviciotecnico.ui.components.GaleriaDeFotos
 import cl.duoc.serviciotecnico.ui.viewmodel.DetalleTicketUiState
@@ -95,6 +96,11 @@ fun DetalleTicketScreen(
     // Al eliminar con exito se vuelve al listado
     LaunchedEffect(estado.eliminado) {
         if (estado.eliminado) onEliminado()
+    }
+
+    // Al guardar el cambio de estado la pantalla se cierra: el ticket ya quedo actualizado
+    LaunchedEffect(estado.cambioAplicado) {
+        if (estado.cambioAplicado) onVolver()
     }
 
     var confirmarEliminar by remember { mutableStateOf(false) }
@@ -144,7 +150,8 @@ fun DetalleTicketScreen(
             )
         },
         floatingActionButton = {
-            if (estado.editable) {
+            // La guia la emite el tecnico en terreno, no el coordinador
+            if (estado.editable && estado.puedeCrearGuias) {
                 ExtendedFloatingActionButton(
                     onClick = onNuevaGuia,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
@@ -213,6 +220,7 @@ private fun ContenidoDetalle(
                     }
                     Dato("Cliente", ticket.cliente)
                     Dato("Prioridad", ticket.prioridad.etiqueta)
+                    Dato("Tecnico asignado", ticket.tecnicoNombre ?: "Sin asignar")
                     Dato("Creado", ticket.fechaCreacion.format(formatoFecha))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Dato("Dirección", ticket.direccion, Modifier.weight(1f))
@@ -250,6 +258,7 @@ private fun ContenidoDetalle(
                     formulario = estado.formulario,
                     tieneGuias = estado.guias.isNotEmpty(),
                     onSeleccionarEstado = vm::seleccionarEstado,
+                    onMotivoCambia = vm::cambiarMotivo,
                     onEnviar = vm::enviarCambioDeEstado
                 )
             }
@@ -304,6 +313,7 @@ private fun FormularioDeCambio(
     formulario: FormularioCambioEstado,
     tieneGuias: Boolean,
     onSeleccionarEstado: (EstadoTicket) -> Unit,
+    onMotivoCambia: (String) -> Unit,
     onEnviar: () -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
@@ -326,6 +336,20 @@ private fun FormularioDeCambio(
                     formulario.errorEstado.orEmpty(),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            // Solo al cancelar: por que se cancela. Desaparece si se elige otro estado.
+            AnimatedVisibility(visible = formulario.pideMotivo) {
+                CampoTextoValidado(
+                    valor = formulario.motivo,
+                    onValorCambia = onMotivoCambia,
+                    etiqueta = "Motivo de la cancelación",
+                    obligatorio = true,
+                    lineasMinimas = 3,
+                    lineasMaximas = 6,
+                    error = formulario.errorMotivo,
+                    habilitado = !formulario.enviando
                 )
             }
 

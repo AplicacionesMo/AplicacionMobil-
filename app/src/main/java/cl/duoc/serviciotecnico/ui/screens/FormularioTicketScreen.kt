@@ -6,18 +6,26 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -26,7 +34,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -35,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.serviciotecnico.domain.model.Prioridad
 import cl.duoc.serviciotecnico.domain.model.Propiedad
+import cl.duoc.serviciotecnico.domain.model.Usuario
 import cl.duoc.serviciotecnico.ui.components.BotonGuardar
 import cl.duoc.serviciotecnico.ui.components.CampoTextoValidado
 import cl.duoc.serviciotecnico.ui.viewmodel.CampoTicket
@@ -144,7 +155,7 @@ fun FormularioTicketScreen(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
             // ---------- Formulario 2: Equipo ----------
-            Text("Equipo atendido", style = MaterialTheme.typography.titleMedium)
+            Text("Datos del equipo", style = MaterialTheme.typography.titleMedium)
 
             CampoTextoValidado(
                 valor = estado.nombreEquipo,
@@ -181,12 +192,92 @@ fun FormularioTicketScreen(
                 habilitado = habilitado
             )
 
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+            // ---------- Formulario 3: Asignacion ----------
+            Text("Tecnico asignado", style = MaterialTheme.typography.titleMedium)
+            SelectorDeTecnico(
+                elegido = estado.tecnicoElegido,
+                tecnicos = estado.tecnicosDisponibles,
+                cargando = estado.cargandoTecnicos,
+                habilitado = habilitado,
+                onSeleccionar = vm::seleccionarTecnico,
+                onQuitar = vm::quitarTecnico
+            )
+
             if (habilitado) {
                 BotonGuardar(
                     onClick = vm::guardar,
                     texto = if (estado.esEdicion) "Guardar cambios" else "Crear ticket",
                     guardando = estado.guardando,
                     modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Campo tocable que despliega los tecnicos que entrega ms-usuarios.
+ * Al tocarlo otra vez se vuelve a abrir la lista para cambiar la eleccion.
+ */
+@Composable
+private fun SelectorDeTecnico(
+    elegido: String,
+    tecnicos: List<Usuario>,
+    cargando: Boolean,
+    habilitado: Boolean,
+    onSeleccionar: (Usuario) -> Unit,
+    onQuitar: () -> Unit
+) {
+    var abierto by remember { mutableStateOf(false) }
+
+    Box {
+        OutlinedButton(
+            onClick = { abierto = true },
+            enabled = habilitado && !cargando,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Filled.Person, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (cargando) "Cargando tecnicos..." else elegido, modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+
+        DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
+            if (tecnicos.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("No hay tecnicos registrados") },
+                    onClick = { abierto = false },
+                    enabled = false
+                )
+            }
+            tecnicos.forEach { tecnico ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(tecnico.nombre)
+                            Text(
+                                tecnico.correo,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    onClick = {
+                        abierto = false
+                        onSeleccionar(tecnico)
+                    }
+                )
+            }
+            if (tecnicos.isNotEmpty()) {
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Dejar sin asignar") },
+                    onClick = {
+                        abierto = false
+                        onQuitar()
+                    }
                 )
             }
         }

@@ -40,7 +40,7 @@ class GuiaServiceTest {
         when(repository.ultimoNumero()).thenReturn(4);
         when(repository.save(any(Guia.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        GuiaResponse r = service.crear(request(List.of("content://foto1", "content://foto2")));
+        GuiaResponse r = service.crear(request(List.of("content://foto1", "content://foto2")), "TECNICO");
 
         assertEquals(5, r.numero());
         assertEquals("Av. Siempre Viva 123", r.direccion());
@@ -53,7 +53,7 @@ class GuiaServiceTest {
         when(repository.ultimoNumero()).thenReturn(0);
         when(repository.save(any(Guia.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        GuiaResponse r = service.crear(request(null));
+        GuiaResponse r = service.crear(request(null), "TECNICO");
 
         assertTrue(r.urisDeFotos().isEmpty());
     }
@@ -109,5 +109,14 @@ class GuiaServiceTest {
         service.eliminar("g-1");
 
         verify(repository).delete(existente);
+    }
+
+    @Test
+    void soloElTecnicoEmiteGuias() {
+        ApiException e = assertThrows(ApiException.class,
+                () -> service.crear(request(null), "COORDINADOR"));
+
+        assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
+        verify(repository, never()).save(any());
     }
 }

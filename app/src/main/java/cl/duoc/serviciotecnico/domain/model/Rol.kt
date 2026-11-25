@@ -21,6 +21,10 @@ enum class Rol(val etiqueta: String) {
     val puedeCrearTickets: Boolean
         get() = this != TECNICO
 
+    /** La guia la emite quien fue a terreno: solo el tecnico. */
+    val puedeCrearGuias: Boolean
+        get() = this == TECNICO
+
     val puedeEliminarTickets: Boolean
         get() = this != TECNICO
 

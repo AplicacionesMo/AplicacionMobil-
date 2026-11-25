@@ -38,7 +38,7 @@ class TicketControllerTest {
         return new TicketResponse("t-1", 1, "No enfria", "El equipo no enfria", "Banco Uno",
                 "Av. Siempre Viva 123", Prioridad.ALTA, EstadoTicket.ABIERTO,
                 new EquipoResponse("eq-1", "Split", "LG", "ABC123", Propiedad.ARRENDADO),
-                LocalDateTime.now(), null, null, null);
+                LocalDateTime.now(), null, null, null, 7L, "Tecnico de Prueba");
     }
 
     @Test

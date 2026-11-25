@@ -59,7 +59,9 @@ fun TicketDto.aEntidad(): Ticket = Ticket(
     fechaCreacion = aFecha(fechaCreacion) ?: LocalDateTime.now(),
     fechaCierre = aFecha(fechaCierre),
     solucion = solucion,
-    motivoCancelacion = motivoCancelacion
+    motivoCancelacion = motivoCancelacion,
+    tecnicoId = tecnicoId,
+    tecnicoNombre = tecnicoNombre
 )
 
 fun CambioEstadoDto.aEntidad(): CambioEstado = CambioEstado(
@@ -121,5 +123,7 @@ fun DatosTicket.aRequest(): TicketRequestDto = TicketRequestDto(
         modelo = modelo.trim(),
         serie = serie.trim(),
         propiedad = propiedad.name
-    )
+    ),
+    tecnicoId = tecnicoId,
+    tecnicoNombre = tecnicoNombre
 )

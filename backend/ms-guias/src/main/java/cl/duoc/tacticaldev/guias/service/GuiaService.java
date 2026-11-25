@@ -15,6 +15,8 @@ import java.util.List;
 @Service
 public class GuiaService {
 
+    public static final String ROL_TECNICO = "TECNICO";
+
     private final GuiaRepository repository;
 
     public GuiaService(GuiaRepository repository) {
@@ -42,7 +44,8 @@ public class GuiaService {
     }
 
     @Transactional
-    public GuiaResponse crear(GuiaRequest request) {
+    public GuiaResponse crear(GuiaRequest request, String rol) {
+        exigirTecnico(rol);
         Guia guia = new Guia();
         guia.setNumero(repository.ultimoNumero() + 1);
         guia.setTicketId(request.ticketId());
@@ -84,5 +87,12 @@ public class GuiaService {
     private Guia buscar(String id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Guia no encontrada"));
+    }
+
+    /** La guia la emite quien fue a terreno: el coordinador y el administrador no. */
+    private void exigirTecnico(String rol) {
+        if (!ROL_TECNICO.equalsIgnoreCase(rol)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Solo el tecnico puede emitir guias de servicio");
+        }
     }
 }

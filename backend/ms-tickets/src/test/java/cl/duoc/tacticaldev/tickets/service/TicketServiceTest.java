@@ -27,6 +27,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -72,7 +73,8 @@ class TicketServiceTest {
     private TicketRequest request() {
         return new TicketRequest("No enfria", "El equipo no enfria la sala", "Banco Uno",
                 "Av. Siempre Viva 123", Prioridad.ALTA,
-                new EquipoRequest("Split muro", "LG 12000", "abc123", Propiedad.PROPIO_DEL_CLIENTE));
+                new EquipoRequest("Split muro", "LG 12000", "abc123", Propiedad.PROPIO_DEL_CLIENTE),
+                7L, "Tecnico de Prueba");
     }
 
     private CambioEstadoRequest cambio(EstadoTicket nuevo) {
@@ -306,5 +308,34 @@ class TicketServiceTest {
 
         assertEquals("Cambio de estado a Finalizado", r.solucion());
         assertEquals("Cambio de estado a Finalizado", t.getHistorial().get(0).getComentario());
+    }
+
+    @Test
+    void crearGuardaElTecnicoAsignado() {
+        when(ticketRepository.ultimoNumero()).thenReturn(0);
+        when(equipoService.obtenerOCrear(any())).thenReturn(equipo);
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketResponse r = service.crear(request(), "COORDINADOR");
+
+        assertEquals(7L, r.tecnicoId());
+        assertEquals("Tecnico de Prueba", r.tecnicoNombre());
+    }
+
+    @Test
+    void elTicketPuedeQuedarSinTecnico() {
+        when(ticketRepository.ultimoNumero()).thenReturn(0);
+        when(equipoService.obtenerOCrear(any())).thenReturn(equipo);
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketRequest sinTecnico = new TicketRequest("No enfria", "El equipo no enfria la sala",
+                "Banco Uno", "Av. Siempre Viva 123", Prioridad.ALTA,
+                new EquipoRequest("Split muro", "LG 12000", "abc123", Propiedad.PROPIO_DEL_CLIENTE),
+                null, null);
+
+        TicketResponse r = service.crear(sinTecnico, "COORDINADOR");
+
+        assertNull(r.tecnicoId());
+        assertNull(r.tecnicoNombre());
     }
 }

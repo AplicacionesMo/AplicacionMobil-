@@ -13,10 +13,12 @@ import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
 import cl.duoc.serviciotecnico.data.remote.capturarErrores
 import cl.duoc.serviciotecnico.data.repository.EquipoRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
+import cl.duoc.serviciotecnico.data.repository.UsuarioRepository
 import cl.duoc.serviciotecnico.domain.model.DatosTicket
 import cl.duoc.serviciotecnico.domain.model.Prioridad
 import cl.duoc.serviciotecnico.domain.model.Propiedad
 import cl.duoc.serviciotecnico.domain.model.Rol
+import cl.duoc.serviciotecnico.domain.model.Usuario
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +41,11 @@ data class FormularioTicketUiState(
     val modelo: String = "",
     val serie: String = "",
     val propiedad: Propiedad = Propiedad.PROPIO_DEL_CLIENTE,
+    // Asignacion (formulario 3): tecnico que atendera el ticket
+    val tecnicoId: Long? = null,
+    val tecnicoNombre: String? = null,
+    val tecnicosDisponibles: List<Usuario> = emptyList(),
+    val cargandoTecnicos: Boolean = false,
     // Estado de la pantalla
     val esEdicion: Boolean = false,
     val numero: Int? = null,
@@ -57,6 +64,9 @@ data class FormularioTicketUiState(
         if (intentoGuardar || campo in camposTocados) errores[campo] else null
 
     val formularioValido: Boolean get() = errores.isEmpty()
+
+    /** Texto del selector: el tecnico elegido o la invitacion a elegir. */
+    val tecnicoElegido: String get() = tecnicoNombre ?: "Sin asignar"
 }
 
 /**
@@ -71,6 +81,7 @@ class FormularioTicketViewModel(
     private val estadoGuardado: SavedStateHandle,
     private val ticketRepository: TicketRepository,
     private val equipoRepository: EquipoRepository,
+    private val usuarioRepository: UsuarioRepository,
     private val rol: Rol
 ) : ViewModel() {
 
@@ -89,6 +100,35 @@ class FormularioTicketViewModel(
 
     init {
         if (ticketId != null) cargarTicket(ticketId) else recalcularErrores()
+        cargarTecnicos()
+    }
+
+    /** GET /api/v1/usuarios en ms-usuarios; se queda solo con los del rol TECNICO. */
+    private fun cargarTecnicos() {
+        viewModelScope.launch {
+            _estado.update { it.copy(cargandoTecnicos = true) }
+            capturarErrores { usuarioRepository.listar() }
+                .onSuccess { usuarios ->
+                    val tecnicos = usuarios.filter { it.rol == Rol.TECNICO && it.activo }
+                    _estado.update { it.copy(tecnicosDisponibles = tecnicos, cargandoTecnicos = false) }
+                }
+                .onFailure { error ->
+                    _estado.update {
+                        it.copy(cargandoTecnicos = false, mensaje = ErrorDeRed.mensaje(error))
+                    }
+                }
+        }
+    }
+
+    /** Se elige un tecnico de la lista; volver a tocar el campo la abre de nuevo. */
+    fun seleccionarTecnico(tecnico: Usuario) {
+        _estado.update { it.copy(tecnicoId = tecnico.id, tecnicoNombre = tecnico.nombre) }
+        respaldar()
+    }
+
+    fun quitarTecnico() {
+        _estado.update { it.copy(tecnicoId = null, tecnicoNombre = null) }
+        respaldar()
     }
 
     private fun cargarTicket(id: String) {
@@ -112,7 +152,9 @@ class FormularioTicketViewModel(
                     nombreEquipo = equipo.nombre,
                     modelo = equipo.modelo,
                     serie = equipo.serie,
-                    propiedad = equipo.propiedad
+                    propiedad = equipo.propiedad,
+                    tecnicoId = ticket.tecnicoId,
+                    tecnicoNombre = ticket.tecnicoNombre
                 )
                 base.copy(
                     numero = ticket.numero,
@@ -172,6 +214,8 @@ class FormularioTicketViewModel(
         estadoGuardado[CLAVE_MODELO] = s.modelo
         estadoGuardado[CLAVE_SERIE] = s.serie
         estadoGuardado[CLAVE_PROPIEDAD] = s.propiedad.name
+        estadoGuardado[CLAVE_TECNICO_ID] = s.tecnicoId
+        estadoGuardado[CLAVE_TECNICO_NOMBRE] = s.tecnicoNombre
         estadoGuardado[CLAVE_TOCADOS] = ArrayList(s.camposTocados.map { it.name })
     }
 
@@ -191,6 +235,8 @@ class FormularioTicketViewModel(
             propiedad = estadoGuardado.get<String>(CLAVE_PROPIEDAD)
                 ?.let { nombre -> Propiedad.entries.firstOrNull { it.name == nombre } }
                 ?: base.propiedad,
+            tecnicoId = estadoGuardado[CLAVE_TECNICO_ID] ?: base.tecnicoId,
+            tecnicoNombre = estadoGuardado[CLAVE_TECNICO_NOMBRE] ?: base.tecnicoNombre,
             camposTocados = estadoGuardado.get<ArrayList<String>>(CLAVE_TOCADOS)
                 ?.mapNotNull { nombre -> CampoTicket.entries.firstOrNull { it.name == nombre } }
                 ?.toSet()
@@ -201,7 +247,8 @@ class FormularioTicketViewModel(
     private fun limpiarBorrador() {
         listOf(
             CLAVE_TITULO, CLAVE_DESCRIPCION, CLAVE_CLIENTE, CLAVE_DIRECCION, CLAVE_PRIORIDAD,
-            CLAVE_NOMBRE_EQUIPO, CLAVE_MODELO, CLAVE_SERIE, CLAVE_PROPIEDAD, CLAVE_TOCADOS
+            CLAVE_NOMBRE_EQUIPO, CLAVE_MODELO, CLAVE_SERIE, CLAVE_PROPIEDAD, CLAVE_TOCADOS,
+            CLAVE_TECNICO_ID, CLAVE_TECNICO_NOMBRE
         ).forEach { estadoGuardado.remove<Any>(it) }
     }
 
@@ -259,7 +306,9 @@ class FormularioTicketViewModel(
         nombreEquipo = nombreEquipo,
         modelo = modelo,
         serie = serie,
-        propiedad = propiedad
+        propiedad = propiedad,
+        tecnicoId = tecnicoId,
+        tecnicoNombre = tecnicoNombre
     )
 
     companion object {
@@ -275,6 +324,8 @@ class FormularioTicketViewModel(
         private const val CLAVE_SERIE = "ticket.serie"
         private const val CLAVE_PROPIEDAD = "ticket.propiedad"
         private const val CLAVE_TOCADOS = "ticket.camposTocados"
+        private const val CLAVE_TECNICO_ID = "ticket.tecnicoId"
+        private const val CLAVE_TECNICO_NOMBRE = "ticket.tecnicoNombre"
 
         fun factory(ticketId: String?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -284,6 +335,7 @@ class FormularioTicketViewModel(
                     createSavedStateHandle(),
                     app.ticketRepository,
                     app.equipoRepository,
+                    app.usuarioRepository,
                     app.sesionRepository.rolActual()
                 )
             }

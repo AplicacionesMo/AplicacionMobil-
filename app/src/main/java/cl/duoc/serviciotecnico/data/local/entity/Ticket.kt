@@ -35,7 +35,10 @@ data class Ticket(
     val fechaCreacion: LocalDateTime = LocalDateTime.now(),
     val fechaCierre: LocalDateTime? = null,
     val solucion: String? = null,
-    val motivoCancelacion: String? = null
+    val motivoCancelacion: String? = null,
+    // Tecnico asignado por el coordinador. Null mientras nadie lo toma.
+    val tecnicoId: Long? = null,
+    val tecnicoNombre: String? = null
 ) {
     val editable: Boolean
         get() = !estado.esFinal

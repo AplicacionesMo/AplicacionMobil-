@@ -2,6 +2,7 @@ package cl.duoc.serviciotecnico.data.repository
 
 import cl.duoc.serviciotecnico.data.remote.api.UsuariosApi
 import cl.duoc.serviciotecnico.data.remote.dto.LoginRequestDto
+import cl.duoc.serviciotecnico.domain.model.CuentaDePrueba
 import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.domain.model.UsuarioSesion
 
@@ -45,5 +46,12 @@ class SesionRepository(
         const val CLAVE_COORDINADOR = "coord123"
         const val USUARIO_ADMIN = "admin@tacticaldev.cl"
         const val CLAVE_ADMIN = "admin123"
+
+        /** Las mismas cuentas, en el orden en que se ofrecen en el login. */
+        val CUENTAS_DE_PRUEBA = listOf(
+            CuentaDePrueba(Rol.TECNICO, USUARIO_TECNICO, CLAVE_TECNICO),
+            CuentaDePrueba(Rol.COORDINADOR, USUARIO_COORDINADOR, CLAVE_COORDINADOR),
+            CuentaDePrueba(Rol.ADMIN, USUARIO_ADMIN, CLAVE_ADMIN)
+        )
     }
 }

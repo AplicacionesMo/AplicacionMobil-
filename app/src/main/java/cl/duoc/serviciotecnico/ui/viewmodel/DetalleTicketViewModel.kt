@@ -19,6 +19,7 @@ import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.domain.model.Rol
+import cl.duoc.serviciotecnico.domain.validation.Validaciones
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,9 +38,14 @@ import kotlinx.coroutines.launch
  */
 data class FormularioCambioEstado(
     val estadoSeleccionado: EstadoTicket? = null,
+    val motivo: String = "",
     val errorEstado: String? = null,
+    val errorMotivo: String? = null,
     val enviando: Boolean = false
-)
+) {
+    /** Cancelar exige explicar por que: queda como motivo en el ticket y en el historial. */
+    val pideMotivo: Boolean get() = estadoSeleccionado == EstadoTicket.CANCELADO
+}
 
 data class DetalleTicketUiState(
     val cargando: Boolean = true,
@@ -52,9 +58,11 @@ data class DetalleTicketUiState(
     val rol: Rol = Rol.TECNICO,
     val sincronizando: Boolean = false,
     val eliminando: Boolean = false,
-    val eliminado: Boolean = false
+    val eliminado: Boolean = false,
+    /** El cambio de estado se guardo: la pantalla se cierra y vuelve al listado. */
+    val cambioAplicado: Boolean = false
 ) {
-    /** Cerrado o cancelado = solo lectura. */
+    /** Finalizado o cancelado = solo lectura. */
     val editable: Boolean get() = ticket?.editable == true
 
     /** El tecnico no ve "Cancelado" en la lista; el coordinador si. */
@@ -62,6 +70,9 @@ data class DetalleTicketUiState(
         get() = rol.estadosPermitidos.filter { it != ticket?.estado }
 
     val puedeEliminar: Boolean get() = rol.puedeEliminarTickets && ticket != null
+
+    /** Solo el tecnico emite guias; el coordinador y el admin no. */
+    val puedeCrearGuias: Boolean get() = rol.puedeCrearGuias
 }
 
 private data class EstadoLocal(
@@ -69,7 +80,8 @@ private data class EstadoLocal(
     val mensaje: String? = null,
     val sincronizando: Boolean = false,
     val eliminando: Boolean = false,
-    val eliminado: Boolean = false
+    val eliminado: Boolean = false,
+    val cambioAplicado: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -113,7 +125,8 @@ class DetalleTicketViewModel(
             rol = rol,
             sincronizando = l.sincronizando,
             eliminando = l.eliminando,
-            eliminado = l.eliminado
+            eliminado = l.eliminado,
+            cambioAplicado = l.cambioAplicado
         )
     }.stateIn(
         scope = viewModelScope,
@@ -146,7 +159,13 @@ class DetalleTicketViewModel(
     // ---------- Eventos del formulario ----------
 
     fun seleccionarEstado(nuevo: EstadoTicket) = actualizarFormulario {
-        it.copy(estadoSeleccionado = nuevo, errorEstado = null)
+        // Al salir de Cancelado el motivo se descarta: no corresponde a los demas estados
+        val motivo = if (nuevo == EstadoTicket.CANCELADO) it.motivo else ""
+        it.copy(estadoSeleccionado = nuevo, motivo = motivo, errorEstado = null, errorMotivo = null)
+    }
+
+    fun cambiarMotivo(texto: String) = actualizarFormulario {
+        it.copy(motivo = texto, errorMotivo = null)
     }
 
     // ---------- Envio: aqui vive toda la validacion ----------
@@ -161,8 +180,12 @@ class DetalleTicketViewModel(
             f.estadoSeleccionado == ticket.estado -> "El ticket ya está en ese estado"
             else -> null
         }
-        if (errorEstado != null) {
-            actualizarFormulario { it.copy(errorEstado = errorEstado) }
+        val errorMotivo = if (f.pideMotivo) {
+            Validaciones.largoMinimo(f.motivo, 10, "El motivo de la cancelacion")
+        } else null
+
+        if (errorEstado != null || errorMotivo != null) {
+            actualizarFormulario { it.copy(errorEstado = errorEstado, errorMotivo = errorMotivo) }
             return
         }
         val nuevo = f.estadoSeleccionado ?: return
@@ -183,12 +206,19 @@ class DetalleTicketViewModel(
                 repository.registrarCambioDeEstado(
                     ticketId = ticketId,
                     nuevoEstado = nuevo,
-                    rol = rol
+                    rol = rol,
+                    // ms-tickets lo guarda como motivoCancelacion
+                    comentario = f.motivo.trim()
                 )
             }
                 .onSuccess {
-                    // Formulario limpio para el siguiente cambio
-                    local.update { EstadoLocal(mensaje = "Estado cambiado a ${nuevo.etiqueta}") }
+                    // Se guardo: la pantalla se cierra y vuelve al listado
+                    local.update {
+                        EstadoLocal(
+                            mensaje = "Estado cambiado a ${nuevo.etiqueta}",
+                            cambioAplicado = true
+                        )
+                    }
                 }
                 .onFailure { e ->
                     actualizarFormulario { it.copy(enviando = false) }

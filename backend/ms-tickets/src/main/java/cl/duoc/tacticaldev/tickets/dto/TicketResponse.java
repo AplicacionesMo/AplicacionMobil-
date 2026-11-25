@@ -19,13 +19,16 @@ public record TicketResponse(
         LocalDateTime fechaCreacion,
         LocalDateTime fechaCierre,
         String solucion,
-        String motivoCancelacion
+        String motivoCancelacion,
+        Long tecnicoId,
+        String tecnicoNombre
 ) {
     public static TicketResponse desde(Ticket t) {
         return new TicketResponse(
                 t.getId(), t.getNumero(), t.getTitulo(), t.getDescripcion(), t.getCliente(),
                 t.getDireccion(), t.getPrioridad(), t.getEstado(), EquipoResponse.desde(t.getEquipo()),
-                t.getFechaCreacion(), t.getFechaCierre(), t.getSolucion(), t.getMotivoCancelacion()
+                t.getFechaCreacion(), t.getFechaCierre(), t.getSolucion(), t.getMotivoCancelacion(),
+                t.getTecnicoId(), t.getTecnicoNombre()
         );
     }
 }

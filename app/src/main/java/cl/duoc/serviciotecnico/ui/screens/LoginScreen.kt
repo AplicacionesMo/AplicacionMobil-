@@ -3,6 +3,7 @@ package cl.duoc.serviciotecnico.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.SupervisorAccount
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,6 +35,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.serviciotecnico.data.repository.SesionRepository
+import cl.duoc.serviciotecnico.domain.model.CuentaDePrueba
+import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.ui.components.CampoTextoValidado
 import cl.duoc.serviciotecnico.ui.viewmodel.CampoLogin
 import cl.duoc.serviciotecnico.ui.viewmodel.LoginViewModel
@@ -152,26 +162,69 @@ fun LoginScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            // Ayuda para el prototipo: credenciales del usuario de prueba
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
+            // Se toca una cuenta y el formulario queda cargado; ingresar sigue siendo manual
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        "Usuarios de prueba (ms-usuarios)",
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    Text(
-                        "Técnico: ${SesionRepository.USUARIO_TECNICO} / ${SesionRepository.CLAVE_TECNICO}\n" +
-                            "Coordinador: ${SesionRepository.USUARIO_COORDINADOR} / ${SesionRepository.CLAVE_COORDINADOR}\n" +
-                            "Admin: ${SesionRepository.USUARIO_ADMIN} / ${SesionRepository.CLAVE_ADMIN}",
-                        style = MaterialTheme.typography.bodyMedium
+                SesionRepository.CUENTAS_DE_PRUEBA.forEach { cuenta ->
+                    TarjetaDeCuenta(
+                        cuenta = cuenta,
+                        habilitada = !estado.ingresando,
+                        onClick = { vm.usarCuentaDePrueba(cuenta) }
                     )
                 }
             }
         }
     }
+}
+
+/** Cuenta de prueba tocable: rellena correo y contrasena de una vez. */
+@Composable
+private fun TarjetaDeCuenta(
+    cuenta: CuentaDePrueba,
+    habilitada: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = habilitada, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = "Usar la cuenta de ${cuenta.rol.etiqueta}" }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = iconoDe(cuenta.rol),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = cuenta.rol.etiqueta,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = cuenta.correo,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private fun iconoDe(rol: Rol): ImageVector = when (rol) {
+    Rol.TECNICO -> Icons.Filled.Build
+    Rol.COORDINADOR -> Icons.Filled.SupervisorAccount
+    Rol.ADMIN -> Icons.Filled.AdminPanelSettings
 }

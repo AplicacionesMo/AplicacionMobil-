@@ -46,7 +46,9 @@ data class TicketRequestDto(
     val cliente: String,
     val direccion: String,
     val prioridad: String,
-    val equipo: EquipoRequestDto
+    val equipo: EquipoRequestDto,
+    val tecnicoId: Long? = null,
+    val tecnicoNombre: String? = null
 )
 
 data class CambioEstadoRequestDto(
@@ -78,7 +80,9 @@ data class TicketDto(
     val fechaCreacion: String?,
     val fechaCierre: String?,
     val solucion: String?,
-    val motivoCancelacion: String?
+    val motivoCancelacion: String?,
+    val tecnicoId: Long? = null,
+    val tecnicoNombre: String? = null
 )
 
 data class CambioEstadoDto(

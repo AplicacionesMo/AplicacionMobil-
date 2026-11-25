@@ -18,8 +18,9 @@ import cl.duoc.serviciotecnico.data.local.entity.Ticket
 
 @Database(
     entities = [Ticket::class, Equipo::class, Guia::class, FotoGuia::class, CambioEstado::class],
-    // 5: los estados pasaron de nueve a cuatro, la cache antigua ya no sirve
-    version = 5,
+    // 5: los estados pasaron de nueve a cuatro
+    // 6: el ticket guarda el tecnico asignado
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

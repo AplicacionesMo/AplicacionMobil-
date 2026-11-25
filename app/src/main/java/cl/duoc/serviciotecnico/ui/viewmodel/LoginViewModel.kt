@@ -9,6 +9,7 @@ import cl.duoc.serviciotecnico.ServicioTecnicoApp
 import cl.duoc.serviciotecnico.data.remote.ErrorDeRed
 import cl.duoc.serviciotecnico.data.remote.capturarErrores
 import cl.duoc.serviciotecnico.data.repository.SesionRepository
+import cl.duoc.serviciotecnico.domain.model.CuentaDePrueba
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +57,24 @@ class LoginViewModel(
     fun cambiarClave(valor: String) {
         _estado.update {
             it.copy(clave = valor, camposTocados = it.camposTocados + CampoLogin.CLAVE, mensaje = null)
+        }
+        recalcularErrores()
+    }
+
+    /**
+     * Deja el formulario cargado con una cuenta de prueba, reemplazando lo que hubiera escrito.
+     * No inicia sesion: el usuario todavia tiene que apretar Ingresar.
+     */
+    fun usarCuentaDePrueba(cuenta: CuentaDePrueba) {
+        _estado.update {
+            it.copy(
+                correo = cuenta.correo,
+                clave = cuenta.clave,
+                // Los campos quedan como recien puestos: no se arrastran errores anteriores
+                camposTocados = emptySet(),
+                intentoIngresar = false,
+                mensaje = null
+            )
         }
         recalcularErrores()
     }

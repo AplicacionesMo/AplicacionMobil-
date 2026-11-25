@@ -32,6 +32,11 @@ public record TicketRequest(
 
         @NotNull(message = "El equipo es obligatorio")
         @Valid
-        EquipoRequest equipo
+        EquipoRequest equipo,
+
+        /** Tecnico asignado. Opcional: un ticket puede quedar sin asignar. */
+        Long tecnicoId,
+
+        String tecnicoNombre
 ) {
 }

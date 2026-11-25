@@ -10,5 +10,7 @@ data class DatosTicket(
     val nombreEquipo: String,
     val modelo: String,
     val serie: String,
-    val propiedad: Propiedad
+    val propiedad: Propiedad,
+    val tecnicoId: Long? = null,
+    val tecnicoNombre: String? = null
 )

@@ -41,12 +41,15 @@ class GuiaRepositoryTest {
     private val api: GuiasApi = mockk()
     private val guiaDao: GuiaDao = mockk(relaxed = true)
     private val fotoDao: FotoGuiaDao = mockk(relaxed = true)
-    private val repository = GuiaRepository(api, guiaDao, fotoDao)
+    private val sesion: SesionRepository = mockk {
+        every { rolActual() } returns Rol.TECNICO
+    }
+    private val repository = GuiaRepository(api, guiaDao, fotoDao, sesion)
 
     @Test
     fun `crear envia la guia y guarda sus fotos en la cache`() = runTest {
         val peticion = slot<GuiaRequestDto>()
-        coEvery { api.crear(capture(peticion)) } returns Datos.guiaDto(fotos = listOf("content://1", "content://2"))
+        coEvery { api.crear(capture(peticion), any()) } returns Datos.guiaDto(fotos = listOf("content://1", "content://2"))
 
         val guia = repository.crear(
             ticketId = "t-1", equipoId = "eq-1", direccion = "Av. Providencia 1234",

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -45,10 +46,12 @@ public class GuiaController {
         return service.contarPorTicket(ticketId);
     }
 
+    /** La cabecera X-Rol identifica a quien pide: solo el tecnico emite guias. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public GuiaResponse crear(@Valid @RequestBody GuiaRequest request) {
-        return service.crear(request);
+    public GuiaResponse crear(@Valid @RequestBody GuiaRequest request,
+                              @RequestHeader(value = "X-Rol", required = false) String rol) {
+        return service.crear(request, rol);
     }
 
     @PutMapping("/{id}")

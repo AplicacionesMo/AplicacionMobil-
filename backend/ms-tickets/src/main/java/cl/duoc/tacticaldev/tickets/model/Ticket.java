@@ -68,6 +68,16 @@ public class Ticket {
     @Column(length = 1000)
     private String motivoCancelacion;
 
+    /**
+     * Tecnico asignado. ms-tickets no conoce a los usuarios (viven en ms-usuarios),
+     * asi que se guarda el id y tambien el nombre para poder mostrarlo sin consultar.
+     * Null = todavia sin asignar.
+     */
+    private Long tecnicoId;
+
+    @Column(length = 150)
+    private String tecnicoNombre;
+
     /** Al eliminar el ticket se elimina su historial (cascade + orphanRemoval). */
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("fecha DESC")
@@ -121,6 +131,12 @@ public class Ticket {
 
     public String getMotivoCancelacion() { return motivoCancelacion; }
     public void setMotivoCancelacion(String motivoCancelacion) { this.motivoCancelacion = motivoCancelacion; }
+
+    public Long getTecnicoId() { return tecnicoId; }
+    public void setTecnicoId(Long tecnicoId) { this.tecnicoId = tecnicoId; }
+
+    public String getTecnicoNombre() { return tecnicoNombre; }
+    public void setTecnicoNombre(String tecnicoNombre) { this.tecnicoNombre = tecnicoNombre; }
 
     public List<CambioEstado> getHistorial() { return historial; }
     public void setHistorial(List<CambioEstado> historial) { this.historial = historial; }
