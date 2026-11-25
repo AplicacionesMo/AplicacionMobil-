@@ -266,12 +266,12 @@ private fun TarjetaClima(estado: EstadoClima, onReintentar: () -> Unit) {
 
                 is EstadoClima.Listo -> Column(Modifier.weight(1f)) {
                     Text(
-                        "Santiago ahora: %.1f °C · %s".format(estado.clima.temperatura, estado.clima.descripcion),
+                        estado.clima.titulo,
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
-                        "Humedad ${estado.clima.humedad}% · Viento %.0f km/h".format(estado.clima.viento),
+                        estado.clima.resumen,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )

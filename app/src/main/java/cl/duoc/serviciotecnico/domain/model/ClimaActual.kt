@@ -13,6 +13,17 @@ data class ClimaActual(
     val descripcion: String get() = describir(codigo)
     val recomendacion: String get() = recomendar(temperatura)
 
+    /** Linea principal de la tarjeta: "Santiago ahora: 21,5 °C · Despejado". */
+    val titulo: String get() = "Santiago ahora: ${"%.1f".format(temperatura)} °C · $descripcion"
+
+    /**
+     * Linea secundaria: "Humedad 45% · Viento 12 km/h".
+     * El numero se formatea por separado y recien despues se arma el texto: si el % de la
+     * humedad entra a String.format, el formateador lo lee como un especificador y lanza
+     * UnknownFormatConversionException.
+     */
+    val resumen: String get() = "Humedad $humedad% · Viento ${"%.0f".format(viento)} km/h"
+
     companion object {
         const val UMBRAL_CALOR = 28.0
         const val UMBRAL_FRIO = 10.0

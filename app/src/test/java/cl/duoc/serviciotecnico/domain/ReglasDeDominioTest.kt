@@ -96,4 +96,15 @@ class ReglasDeDominioTest {
         assertEquals("Despejado", clima.descripcion)
         assertTrue(clima.recomendacion.contains("aire acondicionado"))
     }
+
+    @Test
+    fun `el resumen del clima no revienta por el signo de porcentaje`() {
+        // Armar "Humedad 45% ..." dentro de String.format lanzaba
+        // UnknownFormatConversionException y cerraba la app al entrar al listado
+        val clima = ClimaActual(temperatura = 21.5, humedad = 45, viento = 12.4, codigo = 3)
+
+        assertTrue(clima.resumen.startsWith("Humedad 45%"))
+        assertTrue(clima.resumen.endsWith("12 km/h"))
+        assertTrue(clima.titulo.contains("Nublado"))
+    }
 }
