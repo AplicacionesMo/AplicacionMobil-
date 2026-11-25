@@ -15,6 +15,14 @@ data class LoginRequestDto(
     val clave: String
 )
 
+/** Para crear un usuario nuevo (POST /api/v1/usuarios). */
+data class UsuarioRequestDto(
+    val nombre: String,
+    val correo: String,
+    val clave: String,
+    val rol: String
+)
+
 data class UsuarioDto(
     val id: Long?,
     val nombre: String?,

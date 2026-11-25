@@ -23,6 +23,7 @@ import java.util.List;
 public class TicketService {
 
     public static final String ROL_COORDINADOR = "COORDINADOR";
+    public static final String ROL_ADMIN = "ADMIN";
 
     private final TicketRepository ticketRepository;
     private final CambioEstadoRepository cambioEstadoRepository;
@@ -52,8 +53,12 @@ public class TicketService {
         return TicketResponse.desde(buscar(id));
     }
 
+    /** El tecnico no crea tickets: los crea el coordinador o el administrador. */
     @Transactional
-    public TicketResponse crear(TicketRequest request) {
+    public TicketResponse crear(TicketRequest request, String rol) {
+        if (!esGestor(rol)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Solo el coordinador o el administrador pueden crear tickets");
+        }
         Ticket ticket = new Ticket();
         // Numero correlativo: lo asigna el servidor para que nunca se repita entre dispositivos
         ticket.setNumero(ticketRepository.ultimoNumero() + 1);
@@ -84,8 +89,8 @@ public class TicketService {
         if (nuevo == ticket.getEstado()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "El ticket ya esta en ese estado");
         }
-        if (nuevo == EstadoTicket.CANCELADO && !ROL_COORDINADOR.equalsIgnoreCase(rol)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Solo el coordinador puede cancelar un ticket");
+        if (nuevo == EstadoTicket.CANCELADO && !esGestor(rol)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Solo el coordinador o el administrador pueden cancelar un ticket");
         }
         if (nuevo == EstadoTicket.CERRADO && guiasClient.contarGuiasDeTicket(id) == 0) {
             throw new ApiException(HttpStatus.CONFLICT, "Para cerrar el ticket debes emitir al menos una guia");
@@ -107,12 +112,12 @@ public class TicketService {
         return TicketResponse.desde(ticketRepository.save(ticket));
     }
 
-    /** Solo el coordinador elimina, y solo tickets sin guias emitidas. */
+    /** Solo el coordinador o el administrador eliminan, y solo tickets sin guias emitidas. */
     @Transactional
     public void eliminar(String id, String rol) {
         Ticket ticket = buscar(id);
-        if (!ROL_COORDINADOR.equalsIgnoreCase(rol)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Solo el coordinador puede eliminar un ticket");
+        if (!esGestor(rol)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Solo el coordinador o el administrador pueden eliminar un ticket");
         }
         if (guiasClient.contarGuiasDeTicket(id) > 0) {
             throw new ApiException(HttpStatus.CONFLICT, "No se puede eliminar un ticket que tiene guias emitidas");
@@ -129,6 +134,11 @@ public class TicketService {
     }
 
     // ---------- Apoyo ----------
+
+    /** Coordinador y administrador gestionan tickets; el tecnico solo trabaja en ellos. */
+    private boolean esGestor(String rol) {
+        return ROL_COORDINADOR.equalsIgnoreCase(rol) || ROL_ADMIN.equalsIgnoreCase(rol);
+    }
 
     private void copiarDatos(TicketRequest request, Ticket ticket) {
         ticket.setTitulo(request.titulo().trim());

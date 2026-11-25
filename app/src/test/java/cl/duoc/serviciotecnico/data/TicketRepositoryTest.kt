@@ -61,13 +61,13 @@ class TicketRepositoryTest {
 
     @Test
     fun `crear envia el POST y guarda primero el equipo y luego el ticket`() = runTest {
-        coEvery { api.crear(any()) } returns Datos.ticketDto()
+        coEvery { api.crear(any(), any()) } returns Datos.ticketDto()
 
-        val ticket = repository.crear(datos)
+        val ticket = repository.crear(datos, Rol.COORDINADOR)
 
         assertEquals("t-1", ticket.id)
         coVerifyOrder {
-            api.crear(match { it.titulo == "Equipo no enfria" && it.equipo.serie == "ABC123" })
+            api.crear(match { it.titulo == "Equipo no enfria" && it.equipo.serie == "ABC123" }, "COORDINADOR")
             equipoDao.upsert(match { it.id == "eq-1" })
             ticketDao.upsert(match { it.id == "t-1" })
         }

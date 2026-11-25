@@ -4,6 +4,7 @@ import cl.duoc.tacticaldev.usuarios.dto.LoginRequest;
 import cl.duoc.tacticaldev.usuarios.dto.UsuarioRequest;
 import cl.duoc.tacticaldev.usuarios.dto.UsuarioResponse;
 import cl.duoc.tacticaldev.usuarios.exception.ApiException;
+import cl.duoc.tacticaldev.usuarios.model.Rol;
 import cl.duoc.tacticaldev.usuarios.model.Usuario;
 import cl.duoc.tacticaldev.usuarios.repository.UsuarioRepository;
 import org.springframework.http.HttpStatus;
@@ -41,7 +42,9 @@ public class UsuarioService {
         return UsuarioResponse.desde(buscar(id));
     }
 
-    public UsuarioResponse crear(UsuarioRequest request) {
+    /** Solo el administrador crea usuarios (el rol llega en el header X-Rol). */
+    public UsuarioResponse crear(UsuarioRequest request, String rolSolicitante) {
+        exigirAdmin(rolSolicitante, "Solo el administrador puede crear usuarios");
         if (request.clave() == null || request.clave().length() < 6) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "La clave debe tener al menos 6 caracteres");
         }
@@ -57,8 +60,12 @@ public class UsuarioService {
         return UsuarioResponse.desde(repository.save(nuevo));
     }
 
-    public UsuarioResponse actualizar(Long id, UsuarioRequest request) {
+    public UsuarioResponse actualizar(Long id, UsuarioRequest request, String rolSolicitante) {
+        exigirAdmin(rolSolicitante, "Solo el administrador puede editar usuarios");
         Usuario usuario = buscar(id);
+        if (usuario.getRol() == Rol.ADMIN && request.rol() != Rol.ADMIN && esUltimoAdmin()) {
+            throw new ApiException(HttpStatus.CONFLICT, "No se puede quitar el rol al ultimo administrador");
+        }
         usuario.setNombre(request.nombre().trim());
         usuario.setCorreo(request.correo().trim().toLowerCase());
         usuario.setRol(request.rol());
@@ -68,8 +75,24 @@ public class UsuarioService {
         return UsuarioResponse.desde(repository.save(usuario));
     }
 
-    public void eliminar(Long id) {
-        repository.delete(buscar(id));
+    /** Solo el administrador elimina, y nunca al ultimo administrador. */
+    public void eliminar(Long id, String rolSolicitante) {
+        exigirAdmin(rolSolicitante, "Solo el administrador puede eliminar usuarios");
+        Usuario usuario = buscar(id);
+        if (usuario.getRol() == Rol.ADMIN && esUltimoAdmin()) {
+            throw new ApiException(HttpStatus.CONFLICT, "No se puede eliminar al ultimo administrador");
+        }
+        repository.delete(usuario);
+    }
+
+    private void exigirAdmin(String rolSolicitante, String mensaje) {
+        if (!Rol.ADMIN.name().equalsIgnoreCase(rolSolicitante)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, mensaje);
+        }
+    }
+
+    private boolean esUltimoAdmin() {
+        return repository.countByRol(Rol.ADMIN) <= 1;
     }
 
     private Usuario buscar(Long id) {

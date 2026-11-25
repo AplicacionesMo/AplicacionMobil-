@@ -25,7 +25,7 @@ import java.util.List;
 
 /**
  * Endpoints de tickets. El header X-Rol indica el perfil de quien hace la peticion
- * (TECNICO o COORDINADOR) y se usa para las acciones restringidas.
+ * (TECNICO, COORDINADOR o ADMIN) y se usa para las acciones restringidas.
  */
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -49,8 +49,9 @@ public class TicketController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TicketResponse crear(@Valid @RequestBody TicketRequest request) {
-        return service.crear(request);
+    public TicketResponse crear(@Valid @RequestBody TicketRequest request,
+                                @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol) {
+        return service.crear(request, rol);
     }
 
     @PutMapping("/{id}")

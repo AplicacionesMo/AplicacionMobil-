@@ -15,6 +15,7 @@ import cl.duoc.serviciotecnico.data.repository.ClimaRepository
 import cl.duoc.serviciotecnico.data.repository.EquipoRepository
 import cl.duoc.serviciotecnico.data.repository.GuiaRepository
 import cl.duoc.serviciotecnico.data.repository.SesionRepository
+import cl.duoc.serviciotecnico.data.repository.UsuarioRepository
 import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.domain.model.UsuarioSesion
 import cl.duoc.serviciotecnico.util.Datos
@@ -24,6 +25,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -159,5 +164,59 @@ class ClimaYEquipoRepositoryTest {
         coEvery { dao.obtenerPorId("eq-1") } returns Datos.equipo
 
         assertEquals("ABC123", EquipoRepository(dao).obtenerEquipo("eq-1")?.serie)
+    }
+}
+
+class UsuarioRepositoryTest {
+
+    private val api: UsuariosApi = mockk()
+    private val sesion: SesionRepository = mockk()
+    private val repository = UsuarioRepository(api, sesion)
+
+    @Test
+    fun `crear envia el rol de quien esta conectado`() = runTest {
+        every { sesion.rolActual() } returns Rol.ADMIN
+        coEvery { api.crear(any(), any()) } returns UsuarioDto(5L, "Nuevo", "nuevo@tacticaldev.cl", "TECNICO", true)
+
+        val creado = repository.crear(" Nuevo ", "Nuevo@TacticalDev.cl", "secreta1", Rol.TECNICO)
+
+        assertEquals(Rol.TECNICO, creado.rol)
+        coVerify {
+            api.crear(match { it.correo == "nuevo@tacticaldev.cl" && it.rol == "TECNICO" }, "ADMIN")
+        }
+    }
+
+    @Test
+    fun `listar convierte los roles`() = runTest {
+        coEvery { api.listar() } returns listOf(
+            UsuarioDto(1L, "Admin", "admin@tacticaldev.cl", "ADMIN", true),
+            UsuarioDto(2L, "Tecnico", "tecnico@tacticaldev.cl", "TECNICO", true)
+        )
+
+        val usuarios = repository.listar()
+
+        assertEquals(listOf(Rol.ADMIN, Rol.TECNICO), usuarios.map { it.rol })
+    }
+
+    @Test
+    fun `eliminar envia el rol y falla si el servidor lo rechaza`() = runTest {
+        every { sesion.rolActual() } returns Rol.ADMIN
+        val cuerpo = """{"mensaje":"No se puede eliminar al ultimo administrador"}"""
+            .toResponseBody("application/json".toMediaType())
+        coEvery { api.eliminar(1L, "ADMIN") } returns Response.error(409, cuerpo)
+
+        val resultado = runCatching { repository.eliminar(1L) }
+
+        assertTrue(resultado.exceptionOrNull() is HttpException)
+    }
+
+    @Test
+    fun `eliminar exitoso no lanza error`() = runTest {
+        every { sesion.rolActual() } returns Rol.ADMIN
+        coEvery { api.eliminar(2L, "ADMIN") } returns Response.success(Unit)
+
+        repository.eliminar(2L)
+
+        coVerify { api.eliminar(2L, "ADMIN") }
     }
 }

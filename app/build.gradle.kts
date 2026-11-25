@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    jacoco
 }
 
 // Datos de la firma: se leen de keystore.properties (en la raiz del proyecto)
@@ -106,4 +107,44 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// ---------- Cobertura de la LOGICA (la pauta pide 80 %) ----------
+// Ejecutar:  ./gradlew coberturaLogica
+// Informe:   app/build/reports/jacoco/coberturaLogica/html/index.html
+// Mide ViewModel, repositorios, dominio y la capa de red. Deja fuera lo que no es logica:
+// pantallas Compose, tema, navegacion, clases generadas, DTO/entidades (solo datos)
+// y clases que dependen del sistema Android (se prueban a mano en la app).
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.register<JacocoReport>("coberturaLogica") {
+    group = "verification"
+    description = "Cobertura de las pruebas unitarias sobre la logica de la app"
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+    }
+
+    val fueraDeLaLogica = listOf(
+        "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
+        "**/*_Impl*", "**/*ComposableSingletons*",
+        "**/ui/screens/**", "**/ui/components/**", "**/ui/theme/**", "**/ui/navigation/**",
+        "**/MainActivity*", "**/ServicioTecnicoApp*",
+        "**/data/remote/dto/**", "**/data/local/entity/**", "**/data/local/AppDatabase*",
+        "**/data/remote/RetrofitService*", "**/PreferenciasSesion*", "**/util/**"
+    )
+
+    classDirectories.setFrom(
+        fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) { exclude(fueraDeLaLogica) }
+    )
+    sourceDirectories.setFrom(files("src/main/java"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+        }
+    )
 }

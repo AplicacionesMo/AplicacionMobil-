@@ -9,6 +9,7 @@ import cl.duoc.serviciotecnico.data.repository.GuiaRepository
 import cl.duoc.serviciotecnico.data.repository.PreferenciasSesion
 import cl.duoc.serviciotecnico.data.repository.SesionRepository
 import cl.duoc.serviciotecnico.data.repository.TicketRepository
+import cl.duoc.serviciotecnico.data.repository.UsuarioRepository
 
 /**
  * Contenedor de dependencias: aqui se arman una sola vez los repositorios,
@@ -37,6 +38,10 @@ class ServicioTecnicoApp : Application() {
 
     val sesionRepository by lazy {
         SesionRepository(RetrofitService.usuariosApi, PreferenciasSesion(this))
+    }
+
+    val usuarioRepository by lazy {
+        UsuarioRepository(RetrofitService.usuariosApi, sesionRepository)
     }
 
     val climaRepository by lazy {

@@ -30,22 +30,35 @@ class ReglasDeDominioTest {
     // ---------- Roles ----------
 
     @Test
-    fun `el tecnico puede cerrar pero no cancelar ni eliminar`() {
+    fun `el tecnico puede cerrar pero no crear, cancelar ni eliminar`() {
         assertTrue(EstadoTicket.CERRADO in Rol.TECNICO.estadosPermitidos)
         assertFalse(EstadoTicket.CANCELADO in Rol.TECNICO.estadosPermitidos)
+        assertFalse(Rol.TECNICO.puedeCrearTickets)
         assertFalse(Rol.TECNICO.puedeEliminarTickets)
+        assertFalse(Rol.TECNICO.puedeGestionarUsuarios)
     }
 
     @Test
-    fun `el coordinador puede cancelar y eliminar`() {
+    fun `el coordinador crea, cancela y elimina tickets pero no gestiona usuarios`() {
         assertTrue(EstadoTicket.CANCELADO in Rol.COORDINADOR.estadosPermitidos)
+        assertTrue(Rol.COORDINADOR.puedeCrearTickets)
         assertTrue(Rol.COORDINADOR.puedeEliminarTickets)
+        assertFalse(Rol.COORDINADOR.puedeGestionarUsuarios)
+    }
+
+    @Test
+    fun `el admin puede todo`() {
+        assertTrue(EstadoTicket.CANCELADO in Rol.ADMIN.estadosPermitidos)
+        assertTrue(Rol.ADMIN.puedeCrearTickets)
+        assertTrue(Rol.ADMIN.puedeEliminarTickets)
+        assertTrue(Rol.ADMIN.puedeGestionarUsuarios)
     }
 
     @Test
     fun `un rol desconocido se trata como tecnico`() {
         assertEquals(Rol.COORDINADOR, Rol.desde("COORDINADOR"))
-        assertEquals(Rol.TECNICO, Rol.desde("ADMIN"))
+        assertEquals(Rol.ADMIN, Rol.desde("ADMIN"))
+        assertEquals(Rol.TECNICO, Rol.desde("SUPERUSUARIO"))
         assertEquals(Rol.TECNICO, Rol.desde(null))
     }
 

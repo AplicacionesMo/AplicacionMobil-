@@ -6,6 +6,7 @@ import cl.duoc.serviciotecnico.domain.model.DatosTicket
 import cl.duoc.serviciotecnico.domain.model.EstadoTicket
 import cl.duoc.serviciotecnico.domain.model.Prioridad
 import cl.duoc.serviciotecnico.domain.model.Propiedad
+import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.ui.viewmodel.CampoTicket
 import cl.duoc.serviciotecnico.ui.viewmodel.FormularioTicketViewModel
 import cl.duoc.serviciotecnico.util.Datos
@@ -43,21 +44,21 @@ class FormularioTicketViewModelTest {
 
     @Test
     fun `formulario vacio no se envia y marca los errores`() {
-        val vm = FormularioTicketViewModel(null, tickets, equipos)
+        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.COORDINADOR)
 
         vm.guardar()
 
         assertNotNull(vm.estado.value.errorVisible(CampoTicket.TITULO))
         assertNotNull(vm.estado.value.errorVisible(CampoTicket.SERIE))
         assertEquals("Revisa los campos marcados", vm.estado.value.mensaje)
-        coVerify(exactly = 0) { tickets.crear(any()) }
+        coVerify(exactly = 0) { tickets.crear(any(), any()) }
     }
 
     @Test
     fun `ticket nuevo valido se crea en el microservicio`() {
         val enviado = slot<DatosTicket>()
-        coEvery { tickets.crear(capture(enviado)) } returns Datos.ticket()
-        val vm = FormularioTicketViewModel(null, tickets, equipos)
+        coEvery { tickets.crear(capture(enviado), Rol.COORDINADOR) } returns Datos.ticket()
+        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.COORDINADOR)
         llenar(vm)
 
         vm.guardar()
@@ -70,8 +71,8 @@ class FormularioTicketViewModelTest {
 
     @Test
     fun `error del servidor se muestra y permite reintentar`() {
-        coEvery { tickets.crear(any()) } throws Datos.errorHttp(400, "El titulo debe tener al menos 5 caracteres")
-        val vm = FormularioTicketViewModel(null, tickets, equipos)
+        coEvery { tickets.crear(any(), any()) } throws Datos.errorHttp(400, "El titulo debe tener al menos 5 caracteres")
+        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.COORDINADOR)
         llenar(vm)
 
         vm.guardar()
@@ -82,11 +83,34 @@ class FormularioTicketViewModelTest {
     }
 
     @Test
+    fun `un tecnico no puede crear tickets`() {
+        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.TECNICO)
+        llenar(vm)
+
+        vm.guardar()
+
+        assertTrue(vm.estado.value.soloLectura)
+        assertEquals(FormularioTicketViewModel.MENSAJE_SIN_PERMISO, vm.estado.value.mensaje)
+        coVerify(exactly = 0) { tickets.crear(any(), any()) }
+    }
+
+    @Test
+    fun `el admin tambien puede crear tickets`() {
+        coEvery { tickets.crear(any(), Rol.ADMIN) } returns Datos.ticket()
+        val vm = FormularioTicketViewModel(null, tickets, equipos, Rol.ADMIN)
+        llenar(vm)
+
+        vm.guardar()
+
+        assertTrue(vm.estado.value.guardado)
+    }
+
+    @Test
     fun `editar carga los datos y guarda con PUT`() {
         coEvery { tickets.obtenerTicket("t-1") } returns Datos.ticket()
         coEvery { equipos.obtenerEquipo("eq-1") } returns Datos.equipo
         coEvery { tickets.actualizar("t-1", any()) } returns Datos.ticket()
-        val vm = FormularioTicketViewModel("t-1", tickets, equipos)
+        val vm = FormularioTicketViewModel("t-1", tickets, equipos, Rol.TECNICO)
 
         assertEquals("Equipo no enfria", vm.estado.value.titulo)
         assertEquals("ABC123", vm.estado.value.serie)
@@ -102,7 +126,7 @@ class FormularioTicketViewModelTest {
     fun `ticket cerrado queda en solo lectura y no se guarda`() {
         coEvery { tickets.obtenerTicket("t-1") } returns Datos.ticket(EstadoTicket.CERRADO)
         coEvery { equipos.obtenerEquipo("eq-1") } returns Datos.equipo
-        val vm = FormularioTicketViewModel("t-1", tickets, equipos)
+        val vm = FormularioTicketViewModel("t-1", tickets, equipos, Rol.TECNICO)
 
         vm.guardar()
 
@@ -113,7 +137,7 @@ class FormularioTicketViewModelTest {
     @Test
     fun `ticket inexistente informa el problema`() {
         coEvery { tickets.obtenerTicket("x") } returns null
-        val vm = FormularioTicketViewModel("x", tickets, equipos)
+        val vm = FormularioTicketViewModel("x", tickets, equipos, Rol.TECNICO)
 
         assertEquals("No se encontro el ticket", vm.estado.value.mensaje)
     }

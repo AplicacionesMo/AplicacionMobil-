@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WifiOff
@@ -56,6 +57,7 @@ private val formatoFecha = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")
 fun ListadoTicketsScreen(
     onCrearTicket: () -> Unit,
     onAbrirTicket: (String) -> Unit,
+    onGestionarUsuarios: () -> Unit = {},
     onSesionCerrada: () -> Unit = {},
     vm: ListadoTicketsViewModel = viewModel(factory = ListadoTicketsViewModel.Factory)
 ) {
@@ -84,6 +86,12 @@ fun ListadoTicketsScreen(
                     IconButton(onClick = vm::refrescar, enabled = !sincronizando) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Actualizar desde el servidor")
                     }
+                    // Solo el administrador ve el boton de usuarios
+                    if (vm.usuario?.rol?.puedeGestionarUsuarios == true) {
+                        IconButton(onClick = onGestionarUsuarios) {
+                            Icon(Icons.Filled.ManageAccounts, contentDescription = "Gestionar usuarios")
+                        }
+                    }
                     IconButton(onClick = {
                         vm.cerrarSesion()
                         onSesionCerrada()
@@ -94,8 +102,11 @@ fun ListadoTicketsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCrearTicket) {
-                Icon(Icons.Filled.Add, contentDescription = "Crear ticket")
+            // El tecnico no crea tickets: solo coordinador y administrador ven el boton
+            if (vm.usuario?.rol?.puedeCrearTickets == true) {
+                FloatingActionButton(onClick = onCrearTicket) {
+                    Icon(Icons.Filled.Add, contentDescription = "Crear ticket")
+                }
             }
         }
     ) { relleno ->
@@ -260,7 +271,7 @@ private fun TarjetaClima(estado: EstadoClima, onReintentar: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
-                        "Humedad ${estado.clima.humedad}%% · Viento %.0f km/h".format(estado.clima.viento),
+                        "Humedad ${estado.clima.humedad}% · Viento %.0f km/h".format(estado.clima.viento),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )

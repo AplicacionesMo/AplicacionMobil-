@@ -5,11 +5,14 @@
 | Dónde | Comando | Herramientas |
 |---|---|---|
 | App | `./gradlew testDebugUnitTest` o clic derecho en `app/src/test` → *Run Tests* | JUnit 4, MockK, kotlinx-coroutines-test |
-| Cobertura app | `./gradlew createDebugUnitTestCoverageReport` → `app/build/reports/coverage/test/debug/index.html` | JaCoCo (incluido en el plugin de Android) |
+| Cobertura de la lógica | `./gradlew coberturaLogica` → `app/build/reports/jacoco/coberturaLogica/html/index.html` | JaCoCo |
 | Microservicios | `mvn test` dentro de cada carpeta de `backend/` | JUnit 5, Mockito, MockMvc |
 
-En el informe de cobertura, mirar los paquetes de lógica: `ui.viewmodel`, `data.repository`,
-`data.remote` y `domain`. Las pantallas Compose no son lógica y se prueban de forma manual.
+La tarea `coberturaLogica` (definida al final de `app/build.gradle.kts`) mide solo la lógica:
+ViewModel, repositorios, dominio, mapeos y manejo de errores. Deja fuera lo que no es lógica:
+pantallas Compose, tema, navegación, clases generadas, DTO y entidades (solo guardan datos) y
+las clases que dependen del sistema Android. El porcentaje total del informe es el que pide la
+pauta (mínimo 80 %).
 
 ## Qué se prueba en la app
 

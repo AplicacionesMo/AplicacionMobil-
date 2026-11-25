@@ -43,5 +43,7 @@ class SesionRepository(
         const val CLAVE_TECNICO = "tecnico123"
         const val USUARIO_COORDINADOR = "coordinador@tacticaldev.cl"
         const val CLAVE_COORDINADOR = "coord123"
+        const val USUARIO_ADMIN = "admin@tacticaldev.cl"
+        const val CLAVE_ADMIN = "admin123"
     }
 }

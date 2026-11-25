@@ -53,9 +53,10 @@ class TicketControllerTest {
 
     @Test
     void crearResponde201() throws Exception {
-        when(service.crear(any())).thenReturn(respuesta());
+        when(service.crear(any(), eq("COORDINADOR"))).thenReturn(respuesta());
 
         mvc.perform(post("/api/v1/tickets")
+                        .header("X-Rol", "COORDINADOR")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"titulo":"No enfria","descripcion":"El equipo no enfria",
@@ -77,6 +78,23 @@ class TicketControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.mensaje").value("El titulo debe tener al menos 5 caracteres"));
+    }
+
+    @Test
+    void crearComoTecnicoResponde403() throws Exception {
+        when(service.crear(any(), eq("TECNICO")))
+                .thenThrow(new ApiException(HttpStatus.FORBIDDEN, "Solo el coordinador o el administrador pueden crear tickets"));
+
+        mvc.perform(post("/api/v1/tickets")
+                        .header("X-Rol", "TECNICO")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"titulo":"No enfria","descripcion":"El equipo no enfria",
+                                 "cliente":"Banco Uno","direccion":"Av. Siempre Viva 123","prioridad":"ALTA",
+                                 "equipo":{"nombre":"Split","modelo":"LG","serie":"ABC123","propiedad":"ARRENDADO"}}
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.mensaje").value("Solo el coordinador o el administrador pueden crear tickets"));
     }
 
     @Test

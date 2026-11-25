@@ -6,6 +6,9 @@ object Rutas {
 
     const val LISTADO_TICKETS = "tickets"
 
+    const val USUARIOS = "usuarios"
+    const val CREAR_USUARIO = "usuarios/nuevo"
+
     const val FORMULARIO_TICKET = "tickets/formulario?ticketId={ticketId}"
     fun formularioTicket(ticketId: String? = null): String =
         "tickets/formulario?ticketId=${ticketId ?: ""}"

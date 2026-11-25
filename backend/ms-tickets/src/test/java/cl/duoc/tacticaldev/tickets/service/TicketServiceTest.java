@@ -85,11 +85,38 @@ class TicketServiceTest {
         when(equipoService.obtenerOCrear(any())).thenReturn(equipo);
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TicketResponse r = service.crear(request());
+        TicketResponse r = service.crear(request(), "COORDINADOR");
 
         assertEquals(8, r.numero());
         assertEquals(EstadoTicket.ABIERTO, r.estado());
         assertEquals("ABC123", r.equipo().serie());
+    }
+
+    @Test
+    void tecnicoNoPuedeCrearTickets() {
+        ApiException e = assertThrows(ApiException.class, () -> service.crear(request(), "TECNICO"));
+
+        assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void adminPuedeCrearTickets() {
+        when(ticketRepository.ultimoNumero()).thenReturn(0);
+        when(equipoService.obtenerOCrear(any())).thenReturn(equipo);
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertEquals(1, service.crear(request(), "ADMIN").numero());
+    }
+
+    @Test
+    void adminPuedeCancelar() {
+        when(ticketRepository.findById("t-1")).thenReturn(Optional.of(ticket(EstadoTicket.ABIERTO)));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TicketResponse r = service.cambiarEstado("t-1", cambio(EstadoTicket.CANCELADO), "ADMIN");
+
+        assertEquals(EstadoTicket.CANCELADO, r.estado());
     }
 
     @Test

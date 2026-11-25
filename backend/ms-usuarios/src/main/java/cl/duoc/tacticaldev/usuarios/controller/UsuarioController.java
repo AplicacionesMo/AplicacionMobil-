@@ -11,13 +11,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** CRUD de usuarios (administracion). */
+/** CRUD de usuarios. Crear, editar y eliminar exigen X-Rol: ADMIN. */
 @RestController
 @RequestMapping("/api/v1/usuarios")
 public class UsuarioController {
@@ -40,18 +41,21 @@ public class UsuarioController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UsuarioResponse crear(@Valid @RequestBody UsuarioRequest request) {
-        return service.crear(request);
+    public UsuarioResponse crear(@Valid @RequestBody UsuarioRequest request,
+                                 @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol) {
+        return service.crear(request, rol);
     }
 
     @PutMapping("/{id}")
-    public UsuarioResponse actualizar(@PathVariable Long id, @Valid @RequestBody UsuarioRequest request) {
-        return service.actualizar(id, request);
+    public UsuarioResponse actualizar(@PathVariable Long id, @Valid @RequestBody UsuarioRequest request,
+                                      @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol) {
+        return service.actualizar(id, request, rol);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void eliminar(@PathVariable Long id) {
-        service.eliminar(id);
+    public void eliminar(@PathVariable Long id,
+                         @RequestHeader(value = "X-Rol", defaultValue = "TECNICO") String rol) {
+        service.eliminar(id, rol);
     }
 }

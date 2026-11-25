@@ -14,6 +14,7 @@ import cl.duoc.serviciotecnico.data.repository.TicketRepository
 import cl.duoc.serviciotecnico.domain.model.DatosTicket
 import cl.duoc.serviciotecnico.domain.model.Prioridad
 import cl.duoc.serviciotecnico.domain.model.Propiedad
+import cl.duoc.serviciotecnico.domain.model.Rol
 import cl.duoc.serviciotecnico.domain.validation.Validaciones
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,10 +60,18 @@ data class FormularioTicketUiState(
 class FormularioTicketViewModel(
     private val ticketId: String?,
     private val ticketRepository: TicketRepository,
-    private val equipoRepository: EquipoRepository
+    private val equipoRepository: EquipoRepository,
+    private val rol: Rol
 ) : ViewModel() {
 
-    private val _estado = MutableStateFlow(FormularioTicketUiState(esEdicion = ticketId != null))
+    // Un tecnico que intenta crear un ticket nuevo ve el formulario bloqueado
+    private val _estado = MutableStateFlow(
+        if (ticketId == null && !rol.puedeCrearTickets) {
+            FormularioTicketUiState(soloLectura = true, mensaje = MENSAJE_SIN_PERMISO)
+        } else {
+            FormularioTicketUiState(esEdicion = ticketId != null)
+        }
+    )
     val estado: StateFlow<FormularioTicketUiState> = _estado.asStateFlow()
 
     init {
@@ -159,7 +168,7 @@ class FormularioTicketViewModel(
             // POST (crear) o PUT (editar) contra ms-tickets; el servidor asigna numero y fecha
             capturarErrores {
                 if (ticketId != null) ticketRepository.actualizar(ticketId, datos)
-                else ticketRepository.crear(datos)
+                else ticketRepository.crear(datos, rol)
             }
                 .onSuccess { _estado.update { it.copy(guardando = false, guardado = true) } }
                 .onFailure { error ->
@@ -181,10 +190,17 @@ class FormularioTicketViewModel(
     )
 
     companion object {
+        const val MENSAJE_SIN_PERMISO = "Solo el coordinador o el administrador pueden crear tickets"
+
         fun factory(ticketId: String?): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as ServicioTecnicoApp
-                FormularioTicketViewModel(ticketId, app.ticketRepository, app.equipoRepository)
+                FormularioTicketViewModel(
+                    ticketId,
+                    app.ticketRepository,
+                    app.equipoRepository,
+                    app.sesionRepository.rolActual()
+                )
             }
         }
     }

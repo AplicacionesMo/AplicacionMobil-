@@ -26,8 +26,9 @@ interface TicketsApi {
     @GET("api/v1/tickets/{id}")
     suspend fun obtener(@Path("id") id: String): TicketDto
 
+    /** Solo coordinador o administrador: el servidor revisa el header X-Rol. */
     @POST("api/v1/tickets")
-    suspend fun crear(@Body request: TicketRequestDto): TicketDto
+    suspend fun crear(@Body request: TicketRequestDto, @Header("X-Rol") rol: String): TicketDto
 
     @PUT("api/v1/tickets/{id}")
     suspend fun actualizar(@Path("id") id: String, @Body request: TicketRequestDto): TicketDto

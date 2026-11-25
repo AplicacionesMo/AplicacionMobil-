@@ -80,7 +80,7 @@ fun LoginScreen(
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Ingresa con tu cuenta de técnico o coordinador",
+                text = "Ingresa con tu cuenta de TacticalDEV",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -166,7 +166,8 @@ fun LoginScreen(
                     )
                     Text(
                         "Técnico: ${SesionRepository.USUARIO_TECNICO} / ${SesionRepository.CLAVE_TECNICO}\n" +
-                            "Coordinador: ${SesionRepository.USUARIO_COORDINADOR} / ${SesionRepository.CLAVE_COORDINADOR}",
+                            "Coordinador: ${SesionRepository.USUARIO_COORDINADOR} / ${SesionRepository.CLAVE_COORDINADOR}\n" +
+                            "Admin: ${SesionRepository.USUARIO_ADMIN} / ${SesionRepository.CLAVE_ADMIN}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

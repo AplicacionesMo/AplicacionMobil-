@@ -13,12 +13,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cl.duoc.serviciotecnico.ServicioTecnicoApp
+import cl.duoc.serviciotecnico.ui.screens.CrearUsuarioScreen
 import cl.duoc.serviciotecnico.ui.screens.DetalleGuiaScreen
 import cl.duoc.serviciotecnico.ui.screens.DetalleTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioGuiaScreen
 import cl.duoc.serviciotecnico.ui.screens.FormularioTicketScreen
 import cl.duoc.serviciotecnico.ui.screens.ListadoTicketsScreen
 import cl.duoc.serviciotecnico.ui.screens.LoginScreen
+import cl.duoc.serviciotecnico.ui.screens.UsuariosScreen
 
 private const val DURACION = 320
 
@@ -76,12 +78,24 @@ fun NavegacionApp() {
             ListadoTicketsScreen(
                 onCrearTicket = { navController.navigate(Rutas.formularioTicket()) },
                 onAbrirTicket = { ticketId -> navController.navigate(Rutas.detalleTicket(ticketId)) },
+                onGestionarUsuarios = { navController.navigate(Rutas.USUARIOS) },
                 onSesionCerrada = {
                     navController.navigate(Rutas.LOGIN) {
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
                 }
             )
+        }
+
+        composable(Rutas.USUARIOS) {
+            UsuariosScreen(
+                onVolver = { navController.popBackStack() },
+                onCrearUsuario = { navController.navigate(Rutas.CREAR_USUARIO) }
+            )
+        }
+
+        composable(Rutas.CREAR_USUARIO) {
+            CrearUsuarioScreen(onVolver = { navController.popBackStack() })
         }
 
         composable(

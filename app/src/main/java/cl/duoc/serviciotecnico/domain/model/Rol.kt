@@ -1,19 +1,31 @@
 package cl.duoc.serviciotecnico.domain.model
 
-/** Perfil del usuario, entregado por ms-usuarios al iniciar sesion. */
+/**
+ * Perfil del usuario, entregado por ms-usuarios al iniciar sesion.
+ *  - TECNICO: trabaja en terreno. Avanza estados, emite guias y cierra. No crea tickets.
+ *  - COORDINADOR: ademas crea, cancela y elimina tickets.
+ *  - ADMIN: todo lo del coordinador y ademas crea y elimina usuarios.
+ */
 enum class Rol(val etiqueta: String) {
     TECNICO("Técnico"),
-    COORDINADOR("Coordinador");
+    COORDINADOR("Coordinador"),
+    ADMIN("Administrador");
 
-    /** El tecnico avanza estados y cierra; solo el coordinador puede cancelar. */
+    /** El tecnico avanza estados y cierra; coordinador y admin tambien pueden cancelar. */
     val estadosPermitidos: List<EstadoTicket>
         get() = when (this) {
             TECNICO -> EstadoTicket.intermedios + EstadoTicket.CERRADO
-            COORDINADOR -> EstadoTicket.intermedios + EstadoTicket.CERRADO + EstadoTicket.CANCELADO
+            COORDINADOR, ADMIN -> EstadoTicket.intermedios + EstadoTicket.CERRADO + EstadoTicket.CANCELADO
         }
 
+    val puedeCrearTickets: Boolean
+        get() = this != TECNICO
+
     val puedeEliminarTickets: Boolean
-        get() = this == COORDINADOR
+        get() = this != TECNICO
+
+    val puedeGestionarUsuarios: Boolean
+        get() = this == ADMIN
 
     companion object {
         fun desde(texto: String?): Rol = entries.firstOrNull { it.name == texto } ?: TECNICO

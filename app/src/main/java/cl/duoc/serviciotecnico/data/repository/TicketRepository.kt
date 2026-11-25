@@ -72,8 +72,8 @@ class TicketRepository(
 
     // ---------- Escritura (POST, PUT, PATCH, DELETE) ----------
 
-    suspend fun crear(datos: DatosTicket): Ticket {
-        val respuesta = api.crear(datos.aRequest())
+    suspend fun crear(datos: DatosTicket, rol: Rol): Ticket {
+        val respuesta = api.crear(datos.aRequest(), rol.name)
         return guardarEnCache(respuesta)
     }
 

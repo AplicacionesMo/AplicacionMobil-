@@ -86,7 +86,7 @@ class UsuarioServiceTest {
         when(repository.existsByCorreoIgnoreCase("nuevo@tacticaldev.cl")).thenReturn(false);
         when(repository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.crear(new UsuarioRequest("Nuevo", "nuevo@tacticaldev.cl", "secreta1", Rol.TECNICO));
+        service.crear(new UsuarioRequest("Nuevo", "nuevo@tacticaldev.cl", "secreta1", Rol.TECNICO), "ADMIN");
 
         verify(repository).save(org.mockito.ArgumentMatchers.argThat(u ->
                 !u.getClave().equals("secreta1") && encoder.matches("secreta1", u.getClave())));
@@ -97,7 +97,7 @@ class UsuarioServiceTest {
         when(repository.existsByCorreoIgnoreCase("tecnico@tacticaldev.cl")).thenReturn(true);
 
         ApiException e = assertThrows(ApiException.class, () ->
-                service.crear(new UsuarioRequest("X", "tecnico@tacticaldev.cl", "secreta1", Rol.TECNICO)));
+                service.crear(new UsuarioRequest("X", "tecnico@tacticaldev.cl", "secreta1", Rol.TECNICO), "ADMIN"));
 
         assertEquals(HttpStatus.CONFLICT, e.getEstado());
         verify(repository, never()).save(any());
@@ -106,9 +106,54 @@ class UsuarioServiceTest {
     @Test
     void crearConClaveCortaLanza400() {
         ApiException e = assertThrows(ApiException.class, () ->
-                service.crear(new UsuarioRequest("X", "x@tacticaldev.cl", "123", Rol.TECNICO)));
+                service.crear(new UsuarioRequest("X", "x@tacticaldev.cl", "123", Rol.TECNICO), "ADMIN"));
 
         assertEquals(HttpStatus.BAD_REQUEST, e.getEstado());
+    }
+
+    @Test
+    void soloElAdminPuedeCrearUsuarios() {
+        UsuarioRequest nuevo = new UsuarioRequest("X", "x@tacticaldev.cl", "secreta1", Rol.TECNICO);
+
+        ApiException comoTecnico = assertThrows(ApiException.class, () -> service.crear(nuevo, "TECNICO"));
+        ApiException comoCoordinador = assertThrows(ApiException.class, () -> service.crear(nuevo, "COORDINADOR"));
+
+        assertEquals(HttpStatus.FORBIDDEN, comoTecnico.getEstado());
+        assertEquals(HttpStatus.FORBIDDEN, comoCoordinador.getEstado());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void coordinadorNoPuedeEliminarUsuarios() {
+        ApiException e = assertThrows(ApiException.class, () -> service.eliminar(1L, "COORDINADOR"));
+
+        assertEquals(HttpStatus.FORBIDDEN, e.getEstado());
+        verify(repository, never()).delete(any());
+    }
+
+    @Test
+    void noSePuedeEliminarAlUltimoAdmin() {
+        Usuario admin = new Usuario("Admin", "admin@tacticaldev.cl", "hash", Rol.ADMIN);
+        admin.setId(3L);
+        when(repository.findById(3L)).thenReturn(Optional.of(admin));
+        when(repository.countByRol(Rol.ADMIN)).thenReturn(1L);
+
+        ApiException e = assertThrows(ApiException.class, () -> service.eliminar(3L, "ADMIN"));
+
+        assertEquals(HttpStatus.CONFLICT, e.getEstado());
+        verify(repository, never()).delete(any());
+    }
+
+    @Test
+    void siHayOtroAdminSePuedeEliminar() {
+        Usuario admin = new Usuario("Admin 2", "admin2@tacticaldev.cl", "hash", Rol.ADMIN);
+        admin.setId(4L);
+        when(repository.findById(4L)).thenReturn(Optional.of(admin));
+        when(repository.countByRol(Rol.ADMIN)).thenReturn(2L);
+
+        service.eliminar(4L, "ADMIN");
+
+        verify(repository).delete(admin);
     }
 
     @Test
@@ -119,7 +164,7 @@ class UsuarioServiceTest {
         when(repository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UsuarioResponse r = service.actualizar(1L,
-                new UsuarioRequest("Nombre Nuevo", "tecnico@tacticaldev.cl", "", Rol.COORDINADOR));
+                new UsuarioRequest("Nombre Nuevo", "tecnico@tacticaldev.cl", "", Rol.COORDINADOR), "ADMIN");
 
         assertEquals("Nombre Nuevo", r.nombre());
         assertEquals(Rol.COORDINADOR, r.rol());
@@ -133,7 +178,7 @@ class UsuarioServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(existente));
         when(repository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.actualizar(1L, new UsuarioRequest("T", "tecnico@tacticaldev.cl", "nueva123", Rol.TECNICO));
+        service.actualizar(1L, new UsuarioRequest("T", "tecnico@tacticaldev.cl", "nueva123", Rol.TECNICO), "ADMIN");
 
         assertNotEquals(hashAnterior, existente.getClave());
     }
@@ -155,11 +200,11 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void eliminarBorraElUsuarioEncontrado() {
+    void adminEliminaUnTecnico() {
         Usuario existente = tecnico();
         when(repository.findById(1L)).thenReturn(Optional.of(existente));
 
-        service.eliminar(1L);
+        service.eliminar(1L, "ADMIN");
 
         verify(repository).delete(existente);
     }

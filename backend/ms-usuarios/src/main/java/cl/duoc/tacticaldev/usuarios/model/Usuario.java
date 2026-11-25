@@ -8,6 +8,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** Tabla "usuarios". La clave nunca se guarda en texto plano: se guarda su hash BCrypt. */
 @Entity
@@ -27,7 +29,12 @@ public class Usuario {
     @Column(nullable = false)
     private String clave;
 
+    /**
+     * VARCHAR y no ENUM de MySQL: asi agregar un rol nuevo (como ADMIN)
+     * no obliga a modificar la columna.
+     */
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 20)
     private Rol rol;
 

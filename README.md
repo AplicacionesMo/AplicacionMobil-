@@ -2,8 +2,8 @@
 
 Aplicación Android nativa para una empresa de servicio técnico de climatización. El técnico en
 terreno registra tickets de atención, avanza su estado hasta cerrarlos y emite una guía de servicio
-por cada visita, con fotografías y la ubicación GPS. El coordinador, además, puede cancelar y
-eliminar tickets.
+por cada visita, con fotografías y la ubicación GPS. El coordinador crea, cancela y elimina
+tickets, y el administrador además gestiona los usuarios.
 
 La app se conecta a **tres microservicios propios en Spring Boot** (usuarios, tickets y guías, cada
 uno con su propia base MySQL) y consume una **API externa** (Open-Meteo) para mostrar el clima
@@ -21,10 +21,13 @@ Asignatura **DSY1105 — Desarrollo de Aplicaciones Móviles** · Evaluaciones P
 
 ## 2. Funcionalidades
 
+- **Gestión de usuarios desde la app** (solo el administrador): listar, crear y eliminar.
+  No se puede eliminar al último administrador.
 - **Login contra el microservicio `ms-usuarios`**, con contraseña cifrada con BCrypt y dos perfiles:
-  técnico y coordinador. La sesión queda guardada en el teléfono.
+  técnico, coordinador y administrador. La sesión queda guardada en el teléfono.
 - **CRUD completo de tickets** contra `ms-tickets`: crear (POST), listar y ver (GET), editar (PUT),
-  cambiar estado (PATCH) y eliminar (DELETE, solo coordinador).
+  cambiar estado (PATCH) y eliminar (DELETE). Crear y eliminar tickets es solo para coordinador
+  y administrador: **el técnico no crea tickets**, trabaja en los que le asignan.
 - Registro del **equipo de climatización** (nombre, modelo, serie, propio o arrendado). Si la serie ya
   existe, el servidor reutiliza el equipo.
 - **Nueve estados** de ticket. Cada cambio exige comentario y ubicación GPS, admite hasta 5 fotos y
@@ -32,7 +35,8 @@ Asignatura **DSY1105 — Desarrollo de Aplicaciones Móviles** · Evaluaciones P
 - **Guías de servicio** contra `ms-guias`, con fotografías de la cámara y coordenadas.
 - **Reglas de negocio validadas en la app y otra vez en el servidor**:
   - no se puede cerrar un ticket sin al menos una guía (ms-tickets le pregunta a ms-guias);
-  - solo el coordinador cancela o elimina;
+  - el técnico no puede crear, cancelar ni eliminar tickets (coordinador y administrador sí);
+  - solo el administrador crea, edita o elimina usuarios;
   - un ticket con guías no se puede eliminar;
   - un ticket cerrado o cancelado es de solo lectura.
 - **Clima actual en Santiago** (API externa Open-Meteo) con una recomendación para la operación.
@@ -108,15 +112,15 @@ backend/ms-xxx/src/main/java/cl/duoc/tacticaldev/xxx/
 |---|---|---|---|
 | ms-usuarios :8081 | POST | `/api/v1/auth/login` | Iniciar sesión → usuario y rol, o 401 |
 | | GET | `/api/v1/usuarios` · `/api/v1/usuarios/{id}` | Listar / ver usuarios |
-| | POST | `/api/v1/usuarios` | Crear usuario (clave con BCrypt) |
-| | PUT | `/api/v1/usuarios/{id}` | Editar usuario |
-| | DELETE | `/api/v1/usuarios/{id}` | Eliminar usuario |
+| | POST | `/api/v1/usuarios` · header `X-Rol` | Crear usuario (solo ADMIN; clave con BCrypt) |
+| | PUT | `/api/v1/usuarios/{id}` · header `X-Rol` | Editar usuario (solo ADMIN) |
+| | DELETE | `/api/v1/usuarios/{id}` · header `X-Rol` | Eliminar usuario (solo ADMIN, nunca el último admin) |
 | ms-tickets :8082 | GET | `/api/v1/tickets` (opcional `?estado=ABIERTO`) | Listar tickets |
 | | GET | `/api/v1/tickets/{id}` | Ver un ticket con su equipo |
-| | POST | `/api/v1/tickets` | Crear ticket + equipo (número correlativo automático) |
+| | POST | `/api/v1/tickets` · header `X-Rol` | Crear ticket + equipo (coordinador o admin; número correlativo automático) |
 | | PUT | `/api/v1/tickets/{id}` | Editar (409 si está cerrado o cancelado) |
 | | PATCH | `/api/v1/tickets/{id}/estado` · header `X-Rol` | Cambiar estado con comentario, fotos y GPS |
-| | DELETE | `/api/v1/tickets/{id}` · header `X-Rol` | Eliminar (solo coordinador y sin guías) |
+| | DELETE | `/api/v1/tickets/{id}` · header `X-Rol` | Eliminar (coordinador o admin, y sin guías) |
 | | GET | `/api/v1/tickets/{id}/historial` | Historial de cambios de estado |
 | | GET | `/api/v1/equipos` · `/{id}` · `/serie/{serie}` | Consultar equipos |
 | ms-guias :8083 | GET | `/api/v1/guias?ticketId=...` | Guías de un ticket |
@@ -177,17 +181,39 @@ Comprobar: abrir `http://localhost:8081/swagger-ui.html` (y 8082, 8083).
 |---|---|---|
 | Técnico | `tecnico@tacticaldev.cl` | `tecnico123` |
 | Coordinador | `coordinador@tacticaldev.cl` | `coord123` |
+| Administrador | `admin@tacticaldev.cl` | `admin123` |
+
+Los tres se crean solos al iniciar `ms-usuarios` (si ya existían, no se duplican).
 
 El emulador llega al PC por `10.0.2.2`. En un teléfono físico, cambiar las URL en
 `app/build.gradle.kts` (`URL_USUARIOS`, `URL_TICKETS`, `URL_GUIAS`) por la IP del PC y agregar esa IP
 en `app/src/main/res/xml/network_security_config.xml`.
+
+### Si un microservicio no conecta
+
+Cada microservicio tiene un chequeo de salud. Abrir en el navegador del PC:
+
+| URL | Qué debería decir |
+|---|---|
+| `http://localhost:8081/actuator/health` | `"status":"UP"` y `db` UP |
+| `http://localhost:8082/actuator/health` | `"status":"UP"`, `db` UP y **`guias` UP** (conexión con ms-guias) |
+| `http://localhost:8083/actuator/health` | `"status":"UP"` y `db` UP |
+
+- **No abre la página:** ese microservicio no está corriendo o se cayó al iniciar. Revisar la
+  consola de IntelliJ (errores típicos: MySQL apagado o el puerto ya ocupado por otro programa).
+- **`db` DOWN:** MySQL está apagado o la clave no es la configurada (`DB_PASS`).
+- **`guias` DOWN en ms-tickets:** ms-guias no está encendido. Sin él no se puede cerrar ni eliminar tickets.
+- **Todo UP pero la app dice "sin conexión":** la app no llega al PC. En el emulador de Android
+  Studio se usa `10.0.2.2`; **otros emuladores (Nox, MuMu, BlueStacks) o un teléfono real usan otra
+  dirección**: hay que poner la IP del PC en `build.gradle.kts` y en `network_security_config.xml`.
+- En Logcat, filtrando por `okhttp`, se ve cada petición con su URL y su respuesta.
 
 ### 3) Ejecutar las pruebas
 
 ```bash
 # App (JUnit 4 + MockK + coroutines-test)
 ./gradlew testDebugUnitTest
-./gradlew createDebugUnitTestCoverageReport   # informe en app/build/reports/coverage/
+./gradlew coberturaLogica   # cobertura de la lógica: app/build/reports/jacoco/coberturaLogica/html/index.html
 
 # Microservicios (JUnit 5 + Mockito + MockMvc)
 cd backend/ms-tickets && mvn test
